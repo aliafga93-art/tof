@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: "Cairo", system-ui, -apple-system, sans-serif;
+  --font-serif: "Amiri", Georgia, serif;
+  --animate-shimmer: shimmer 2s infinite linear;
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%) skewX(-12deg); }
+    100% { transform: translateX(200%) skewX(-12deg); }
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* PRINTING DIRECTIVES */
+@media print {
+  /* Hide all regular dashboard interfaces */
+  html, body {
+    background-color: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  #root, .dashboard-wrapper, .no-print, button, header, nav, aside {
+    display: none !important;
+  }
+
+  /* Show ONLY the print container */
+  #print-root {
+    display: block !important;
+    width: 210mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  .official-form-page {
+    page-break-after: always !important;
+    page-break-inside: avoid !important;
+    margin: 0 !important;
+    padding: 15mm 12mm 10mm 12mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    height: 297mm !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media screen {
+  #print-root {
+    display: none !important;
+  }
+}
+
+/* Hide scrollbar for tabs on mobile but keep functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Fluid Responsive Form Preview */
+.responsive-form-wrapper {
+  --form-scale: 1;
+  transform-origin: top center;
+  transform: scale(var(--form-scale));
+  margin-bottom: calc(-297mm * (1 - var(--form-scale)));
+  transition: transform 0.2s ease-in-out, margin-bottom 0.2s ease-in-out;
+  width: 210mm;
+}
+
+@media (max-width: 1024px) {
+  .responsive-form-wrapper {
+    --form-scale: 0.95;
+  }
+}
+
+@media (max-width: 850px) {
+  .responsive-form-wrapper {
+    --form-scale: 0.8;
+  }
+}
+
+@media (max-width: 640px) {
+  .responsive-form-wrapper {
+    --form-scale: 0.65;
+  }
+}
+
+@media (max-width: 480px) {
+  .responsive-form-wrapper {
+    --form-scale: 0.45;
+  }
+}
+
+@media (max-width: 380px) {
+  .responsive-form-wrapper {
+    --form-scale: 0.35;
+  }
+}
+

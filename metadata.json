@@ -1,0 +1,6 @@
+{
+  "name": "استمارات تأخير الدوام الرسمي",
+  "description": "تطبيق ويب لتوليد وطباعة استمارات الأعذار للتأخير عن الدوام الرسمي من ملفات الوورد والإكسل لمنتسبي الشركة العامة لإنتاج الطاقة الكهربائية",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
