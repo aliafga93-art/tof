@@ -5,6 +5,13 @@ interface PrintSettings {
   showHeader: boolean;
   showDate: boolean;
   customNote: string;
+  positions?: {
+    name: { top: number, right: number };
+    department: { top: number, right: number };
+    dateCreated: { top: number, left: number };
+    dateLateness: { top: number, left: number };
+    timeLateness: { top: number, left: number };
+  };
 }
 
 interface OfficialFormProps {
@@ -53,31 +60,31 @@ export default function OfficialForm({ record, printSettings }: OfficialFormProp
         )}
 
         {/* اسم الموظف - من بداية السطر */}
-        <div className="absolute" style={{ top: '27%', right: '18%', width: '40%', textAlign: 'right' }}>
+        <div className="absolute" style={{ top: `${printSettings?.positions?.name?.top ?? 25.5}%`, right: `${printSettings?.positions?.name?.right ?? 18}%`, width: '40%', textAlign: 'right' }}>
           {record.name}
         </div>
 
         {/* القسم - من بداية السطر */}
-        <div className="absolute" style={{ top: '29.7%', right: '35%', width: '30%', textAlign: 'right' }}>
+        <div className="absolute" style={{ top: `${printSettings?.positions?.department?.top ?? 27.5}%`, right: `${printSettings?.positions?.department?.right ?? 55}%`, width: '30%', textAlign: 'right' }}>
           {record.department}
         </div>
 
         {/* تاريخ تنظيم الاستمارة */}
         {printSettings?.showDate && (
-          <div className="absolute" style={{ top: '19.2%', left: '8%', width: '22%', textAlign: 'center' }}>
+          <div className="absolute" style={{ top: `${printSettings?.positions?.dateCreated?.top ?? 19.5}%`, left: `${printSettings?.positions?.dateCreated?.left ?? 8}%`, width: '22%', textAlign: 'center' }}>
             <span className="font-mono text-black">{record.dateString}</span>
           </div>
         )}
 
         {/* تاريخ التأخير */}
         {printSettings?.showDate && (
-          <div className="absolute" style={{ top: '22.5%', left: '8%', width: '22%', textAlign: 'center' }}>
+          <div className="absolute" style={{ top: `${printSettings?.positions?.dateLateness?.top ?? 22.0}%`, left: `${printSettings?.positions?.dateLateness?.left ?? 8}%`, width: '22%', textAlign: 'center' }}>
             <span className="font-mono text-black">{record.dateString}</span>
           </div>
         )}
 
         {/* وقت البصمة */}
-        <div className="absolute" style={{ top: '24.8%', left: '8%', width: '22%', textAlign: 'center' }}>
+        <div className="absolute" style={{ top: `${printSettings?.positions?.timeLateness?.top ?? 23.5}%`, left: `${printSettings?.positions?.timeLateness?.left ?? 8}%`, width: '22%', textAlign: 'center' }}>
           <span className="font-mono text-black">
             {record.timeString}
           </span>

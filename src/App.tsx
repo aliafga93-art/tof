@@ -134,7 +134,14 @@ export default function App() {
   const [printSettings, setPrintSettings] = useState({
     showHeader: true,
     showDate: true,
-    customNote: ''
+    customNote: '',
+    positions: {
+      name: { top: 25.5, right: 18 },
+      department: { top: 27.5, right: 55 },
+      dateCreated: { top: 19.5, left: 8 },
+      dateLateness: { top: 22.0, left: 8 },
+      timeLateness: { top: 23.5, left: 8 }
+    }
   });
 
   // Browsing state for individual form preview
@@ -871,42 +878,119 @@ export default function App() {
 
         {/* PRINT SETTINGS */}
         {activeTab !== 'preview' && (
-          <div className="bg-white/60 dark:bg-slate-900/60 p-4 rounded-3xl border border-white/60 dark:border-slate-800 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between backdrop-blur-md">
-            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-              <Settings className="w-5 h-5 text-emerald-500" />
-              <h3 className="font-bold text-sm">إعدادات الطباعة</h3>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-4 text-sm font-medium">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={printSettings.showHeader}
-                  onChange={(e) => setPrintSettings(prev => ({ ...prev, showHeader: e.target.checked }))}
-                  className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
-                />
-                <span className="text-slate-600 dark:text-slate-300">عرض الترويسة</span>
-              </label>
-              
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={printSettings.showDate}
-                  onChange={(e) => setPrintSettings(prev => ({ ...prev, showDate: e.target.checked }))}
-                  className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
-                />
-                <span className="text-slate-600 dark:text-slate-300">عرض التاريخ</span>
-              </label>
-
-              <div className="relative">
-                <input 
-                  type="text" 
-                  placeholder="ملاحظات إضافية على الاستمارة..." 
-                  value={printSettings.customNote}
-                  onChange={(e) => setPrintSettings(prev => ({ ...prev, customNote: e.target.value }))}
-                  className="w-64 px-3 py-1.5 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-lg text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                />
+          <div className="bg-white/60 dark:bg-slate-900/60 p-4 rounded-3xl border border-white/60 dark:border-slate-800 shadow-sm mb-6 flex flex-col gap-4 backdrop-blur-md">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                <Settings className="w-5 h-5 text-emerald-500" />
+                <h3 className="font-bold text-sm">إعدادات الطباعة</h3>
               </div>
+              
+              <div className="flex flex-wrap items-center gap-4 text-sm font-medium">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={printSettings.showHeader}
+                    onChange={(e) => setPrintSettings(prev => ({ ...prev, showHeader: e.target.checked }))}
+                    className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <span className="text-slate-600 dark:text-slate-300">عرض الترويسة</span>
+                </label>
+                
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={printSettings.showDate}
+                    onChange={(e) => setPrintSettings(prev => ({ ...prev, showDate: e.target.checked }))}
+                    className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <span className="text-slate-600 dark:text-slate-300">عرض التاريخ</span>
+                </label>
+
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    placeholder="ملاحظات إضافية على الاستمارة..." 
+                    value={printSettings.customNote}
+                    onChange={(e) => setPrintSettings(prev => ({ ...prev, customNote: e.target.value }))}
+                    className="w-64 px-3 py-1.5 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-lg text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Advanced Position Tuning */}
+            <div className="pt-4 border-t border-slate-200/50 dark:border-slate-700/50">
+              <details className="group">
+                <summary className="text-xs font-bold text-slate-500 hover:text-emerald-600 cursor-pointer select-none mb-3">
+                  إعدادات متقدمة (تعديل مواقع النصوص على الاستمارة)
+                </summary>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-white/40 dark:bg-slate-900/40 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
+                  {/* Name Position */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">اسم الموظف</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-500 w-12">أعلى (Y)</span>
+                      <input type="range" min="20" max="40" step="0.1" value={printSettings.positions?.name?.top ?? 27} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, name: { ...prev.positions?.name, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-500 w-12">يمين (X)</span>
+                      <input type="range" min="10" max="50" step="0.1" value={printSettings.positions?.name?.right ?? 18} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, name: { ...prev.positions?.name, right: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
+                    </div>
+                  </div>
+
+                  {/* Department Position */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">القسم</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-500 w-12">أعلى (Y)</span>
+                      <input type="range" min="20" max="40" step="0.1" value={printSettings.positions?.department?.top ?? 29.7} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, department: { ...prev.positions?.department, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-500 w-12">يمين (X)</span>
+                      <input type="range" min="10" max="50" step="0.1" value={printSettings.positions?.department?.right ?? 35} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, department: { ...prev.positions?.department, right: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
+                    </div>
+                  </div>
+
+                  {/* Date Lateness Position */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">تاريخ التأخير</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-500 w-12">أعلى (Y)</span>
+                      <input type="range" min="15" max="35" step="0.1" value={printSettings.positions?.dateLateness?.top ?? 22.5} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, dateLateness: { ...prev.positions?.dateLateness, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-500 w-12">يسار (X)</span>
+                      <input type="range" min="0" max="30" step="0.1" value={printSettings.positions?.dateLateness?.left ?? 8} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, dateLateness: { ...prev.positions?.dateLateness, left: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
+                    </div>
+                  </div>
+
+                  {/* Time Lateness Position */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">وقت البصمة</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-500 w-12">أعلى (Y)</span>
+                      <input type="range" min="15" max="35" step="0.1" value={printSettings.positions?.timeLateness?.top ?? 24.8} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, timeLateness: { ...prev.positions?.timeLateness, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-500 w-12">يسار (X)</span>
+                      <input type="range" min="0" max="30" step="0.1" value={printSettings.positions?.timeLateness?.left ?? 8} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, timeLateness: { ...prev.positions?.timeLateness, left: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
+                    </div>
+                  </div>
+
+                  {/* Date Created Position */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">تاريخ تنظيم الاستمارة</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-500 w-12">أعلى (Y)</span>
+                      <input type="range" min="10" max="30" step="0.1" value={printSettings.positions?.dateCreated?.top ?? 19.2} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, dateCreated: { ...prev.positions?.dateCreated, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-500 w-12">يسار (X)</span>
+                      <input type="range" min="0" max="30" step="0.1" value={printSettings.positions?.dateCreated?.left ?? 8} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, dateCreated: { ...prev.positions?.dateCreated, left: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
+                    </div>
+                  </div>
+                </div>
+              </details>
             </div>
           </div>
         )}
