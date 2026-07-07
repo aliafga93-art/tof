@@ -216,9 +216,9 @@ export default function App() {
         let rawRecords = [];
 
         if (apiKey) {
-          // Direct client-side API call for Netlify deployment & Token optimization (uses gemini-1.5-flash)
+          // Direct client-side API call for Netlify deployment & Token optimization (uses gemini-2.5-flash)
           const base64Content = base64Data.split(',')[1];
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -619,7 +619,7 @@ export default function App() {
                     className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all font-mono"
                   />
                   <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                    من خلال إدخال المفتاح الخاص بك، سيتم معالجة الصور <strong className="text-emerald-600 dark:text-emerald-400">مباشرة من المتصفح</strong> دون الحاجة للخوادم (Backend). هذا الخيار مثالي للاستضافة الثابتة المجانية مثل Netlify. يتم استخدام النموذج <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">gemini-1.5-flash</code> الأوفر لاستهلاك التوكن ليتناسب مع الخطة المجانية.
+                    من خلال إدخال المفتاح الخاص بك، سيتم معالجة الصور <strong className="text-emerald-600 dark:text-emerald-400">مباشرة من المتصفح</strong> دون الحاجة للخوادم (Backend). هذا الخيار مثالي للاستضافة الثابتة المجانية مثل Netlify. يتم استخدام النموذج <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">gemini-2.5-flash</code> الأوفر لاستهلاك التوكن ليتناسب مع الخطة المجانية.
                   </p>
                 </div>
               </div>
