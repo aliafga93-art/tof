@@ -7,6 +7,7 @@ interface PrintSettings {
   showDate: boolean;
   customNote: string;
   fontFamily?: string;
+  fontSize?: number;
   positions?: {
     name: { top: number, right: number };
     department: { top: number, left: number };
@@ -52,7 +53,7 @@ export default function OfficialForm({ record, printSettings }: OfficialFormProp
       )}
 
       {/* حاوية النصوص المتغيرة (البيانات) */}
-      <div className="absolute inset-0 z-10 font-bold text-black" style={{ fontSize: '15px', fontFamily: printSettings?.fontFamily || 'Arial, sans-serif' }}>
+      <div className="absolute inset-0 z-10 font-bold text-black" style={{ fontSize: `${printSettings?.fontSize ?? 15}px`, fontFamily: printSettings?.fontFamily || 'Arial, sans-serif' }}>
         
         {/* الملاحظة الإضافية (إن وجدت) */}
         {printSettings?.customNote && (
@@ -74,20 +75,20 @@ export default function OfficialForm({ record, printSettings }: OfficialFormProp
         {/* تاريخ تنظيم الاستمارة */}
         {printSettings?.showDate && (
           <div className="absolute" style={{ top: `${printSettings?.positions?.dateCreated?.top ?? 19.5}%`, left: `${printSettings?.positions?.dateCreated?.left ?? 8}%`, width: '22%', textAlign: 'center' }}>
-            <span className="font-mono text-black">{record.dateString}</span>
+            <span className="text-black">{record.dateString}</span>
           </div>
         )}
 
         {/* تاريخ التأخير */}
         {printSettings?.showDate && (
           <div className="absolute" style={{ top: `${printSettings?.positions?.dateLateness?.top ?? 22.0}%`, left: `${printSettings?.positions?.dateLateness?.left ?? 8}%`, width: '22%', textAlign: 'center' }}>
-            <span className="font-mono text-black">{record.dateString}</span>
+            <span className="text-black">{record.dateString}</span>
           </div>
         )}
 
         {/* وقت البصمة */}
         <div className="absolute" style={{ top: `${printSettings?.positions?.timeLateness?.top ?? 23.5}%`, left: `${printSettings?.positions?.timeLateness?.left ?? 8}%`, width: '22%', textAlign: 'center' }}>
-          <span className="font-mono text-black">
+          <span className="text-black">
             {record.timeString}
           </span>
         </div>

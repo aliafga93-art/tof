@@ -25,7 +25,7 @@ import {
   Key,
   X,
   Moon,
-  Sun
+  Sun, Save, CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LatenessRecord } from './types';
@@ -145,6 +145,7 @@ export default function App() {
       showDate: true,
       customNote: '',
       fontFamily: 'Arial, sans-serif',
+      fontSize: 15,
       positions: {
         name: { top: 25.5, right: 18 },
         department: { top: 27.5, left: 15 },
@@ -155,9 +156,13 @@ export default function App() {
     };
   });
 
-  useEffect(() => {
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const handleSaveSettings = () => {
     localStorage.setItem('printSettings', JSON.stringify(printSettings));
-  }, [printSettings]);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2000);
+  };
 
   // Browsing state for individual form preview
   const [currentFormIndex, setCurrentFormIndex] = useState(0);
@@ -945,6 +950,19 @@ export default function App() {
                     <option value="'Amiri', serif">Amiri</option>
                   </select>
                 </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">حجم الخط:</span>
+                  <input
+                    type="range"
+                    min="10"
+                    max="24"
+                    step="1"
+                    value={printSettings.fontSize ?? 15}
+                    onChange={(e) => setPrintSettings(prev => ({ ...prev, fontSize: parseInt(e.target.value) }))}
+                    className="w-24 accent-emerald-500"
+                  />
+                  <span className="text-xs text-slate-500 w-4">{printSettings.fontSize ?? 15}</span>
+                </div>
               </div>
             </div>
 
@@ -1021,6 +1039,24 @@ export default function App() {
                   </div>
                 </div>
               </details>
+              <div className="mt-4 flex items-center justify-end">
+                <button
+                  onClick={handleSaveSettings}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
+                >
+                  {saveSuccess ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      تم الحفظ
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      حفظ الإعدادات
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}

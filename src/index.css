@@ -31,7 +31,7 @@
 }
 
 /* PRINTING DIRECTIVES */
-@media print {
+@media print {  @page { margin: 0; size: A4; }
   /* Hide all regular dashboard interfaces */
   html, body {
     background-color: #ffffff !important;
@@ -41,7 +41,7 @@
     print-color-adjust: exact !important;
   }
   
-  #root, .dashboard-wrapper, .no-print, button, header, nav, aside {
+  .dashboard-wrapper, .no-print, button, header, nav, aside {
     display: none !important;
   }
 
