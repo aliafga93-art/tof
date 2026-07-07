@@ -1,11 +1,18 @@
 import React from 'react';
 import { LatenessRecord } from '../types';
 
-interface OfficialFormProps {
-  record: LatenessRecord;
+interface PrintSettings {
+  showHeader: boolean;
+  showDate: boolean;
+  customNote: string;
 }
 
-export default function OfficialForm({ record }: OfficialFormProps) {
+interface OfficialFormProps {
+  record: LatenessRecord;
+  printSettings: PrintSettings;
+}
+
+export default function OfficialForm({ record, printSettings }: OfficialFormProps) {
   return (
     <div 
       id={`form-${record.id}`}
@@ -30,9 +37,21 @@ export default function OfficialForm({ record }: OfficialFormProps) {
         style={{ width: '210mm', height: '297mm' }}
       />
 
+      {/* White overlay to hide the official header (if requested) */}
+      {!printSettings?.showHeader && (
+        <div className="absolute top-0 right-0 w-full h-[18%] bg-white z-[5]"></div>
+      )}
+
       {/* حاوية النصوص المتغيرة (البيانات) */}
       <div className="absolute inset-0 z-10 font-bold text-black" style={{ fontSize: '15px' }}>
         
+        {/* الملاحظة الإضافية (إن وجدت) */}
+        {printSettings?.customNote && (
+          <div className="absolute" style={{ top: '8%', right: '10%', width: '80%', textAlign: 'center', fontSize: '18px', color: '#1f2937' }}>
+            {printSettings.customNote}
+          </div>
+        )}
+
         {/* اسم الموظف - من بداية السطر */}
         <div className="absolute" style={{ top: '27%', right: '18%', width: '40%', textAlign: 'right' }}>
           {record.name}
@@ -44,14 +63,18 @@ export default function OfficialForm({ record }: OfficialFormProps) {
         </div>
 
         {/* تاريخ تنظيم الاستمارة */}
-        <div className="absolute" style={{ top: '19.2%', left: '8%', width: '22%', textAlign: 'center' }}>
-          <span className="font-mono text-black">{record.dateString}</span>
-        </div>
+        {printSettings?.showDate && (
+          <div className="absolute" style={{ top: '19.2%', left: '8%', width: '22%', textAlign: 'center' }}>
+            <span className="font-mono text-black">{record.dateString}</span>
+          </div>
+        )}
 
         {/* تاريخ التأخير */}
-        <div className="absolute" style={{ top: '22.5%', left: '8%', width: '22%', textAlign: 'center' }}>
-          <span className="font-mono text-black">{record.dateString}</span>
-        </div>
+        {printSettings?.showDate && (
+          <div className="absolute" style={{ top: '22.5%', left: '8%', width: '22%', textAlign: 'center' }}>
+            <span className="font-mono text-black">{record.dateString}</span>
+          </div>
+        )}
 
         {/* وقت البصمة */}
         <div className="absolute" style={{ top: '24.8%', left: '8%', width: '22%', textAlign: 'center' }}>

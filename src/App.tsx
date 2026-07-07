@@ -21,6 +21,9 @@ import {
   FileDown,
   CheckCircle,
   HelpCircle,
+  Settings,
+  Key,
+  X,
   Moon,
   Sun
 } from 'lucide-react';
@@ -85,6 +88,21 @@ const INITIAL_DEMO_RECORDS: LatenessRecord[] = [
 ];
 
 export default function App() {
+  const [apiKey, setApiKey] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('gemini_api_key') || '';
+    }
+    return '';
+  });
+  
+  const [showSettings, setShowSettings] = useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('gemini_api_key', apiKey);
+    }
+  }, [apiKey]);
+
   const [records, setRecords] = useState<LatenessRecord[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('lateness_records');
@@ -112,6 +130,13 @@ export default function App() {
   const [progress, setProgress] = useState(0);
   const [activeTab, setActiveTab] = useState<'preview' | 'individual' | 'all-forms'>('preview');
   
+  // Print settings
+  const [printSettings, setPrintSettings] = useState({
+    showHeader: true,
+    showDate: true,
+    customNote: ''
+  });
+
   // Browsing state for individual form preview
   const [currentFormIndex, setCurrentFormIndex] = useState(0);
 
@@ -119,7 +144,7 @@ export default function App() {
   const [printQueue, setPrintQueue] = useState<LatenessRecord[]>([]);
 
   // Feedback notifications
-  const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>({
+  const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info' | 'warning'; text: string } | null>({
     type: 'info',
     text: 'مرحباً بك! تم ملء الجدول ببيانات تجريبية من صورة استمارة المتأخرين الأصلية لتجربة التطبيق فوراً.'
   });
@@ -144,7 +169,7 @@ export default function App() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const showNotification = (text: string, type: 'success' | 'error' | 'info' = 'success') => {
+  const showNotification = (text: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
     setNotification({ text, type });
     // Auto clear after 6 seconds
     setTimeout(() => {
@@ -188,19 +213,62 @@ export default function App() {
         reader.readAsDataURL(file);
         const base64Data = await base64Promise;
 
-        // Query the server-side Gemini OCR parser
-        const response = await fetch('/api/parse-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: base64Data, mimeType: file.type || 'image/jpeg' })
-        });
+        let rawRecords = [];
 
-        const resJson = await response.json();
-        if (!response.ok || !resJson.success) {
-          throw new Error(resJson.error || 'فشل استخراج البيانات من الصورة بالذكاء الاصطناعي.');
+        if (apiKey) {
+          // Direct client-side API call for Netlify deployment & Token optimization (uses gemini-1.5-flash)
+          const base64Content = base64Data.split(',')[1];
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { inlineData: { mimeType: file.type || 'image/jpeg', data: base64Content } },
+                  { text: "استخرج جدول 'موقف المتأخرين' من هذه الصورة بدقة. يجب إرجاع مصفوفة JSON فقط تحتوي على كائنات بالخصائص التالية: 'index' (رقم ت), 'name' (الاسم الكامل), 'department' (القسم), 'dateString' (التاريخ DD/MM/YYYY), 'timeString' (الوقت HH:MM). لا تقم بإرجاع أي نص آخر غير مصفوفة JSON صالحة." }
+                ]
+              }],
+              generationConfig: {
+                responseMimeType: "application/json"
+              }
+            })
+          });
+
+          if (!response.ok) {
+            const errRes = await response.json().catch(() => ({}));
+            throw new Error(errRes.error?.message || 'خطأ في الاتصال بـ Gemini API الخاص بك.');
+          }
+
+          const resJson = await response.json();
+          const textResponse = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
+          
+          if (!textResponse) {
+            throw new Error('لم يتم إرجاع أي بيانات من الذكاء الاصطناعي.');
+          }
+          
+          try {
+             // Clean markdown json formatting if the model decided to include it despite responseMimeType
+             const cleanJsonStr = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+             rawRecords = JSON.parse(cleanJsonStr);
+          } catch(e) {
+             throw new Error('فشل في قراءة البيانات كـ JSON. يرجى المحاولة مرة أخرى.');
+          }
+        } else {
+          // Fallback to server-side if no local key is provided
+          const response = await fetch('/api/parse-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageBase64: base64Data, mimeType: file.type || 'image/jpeg' })
+          });
+
+          const resJson = await response.json();
+          if (!response.ok || !resJson.success) {
+            throw new Error(resJson.error || 'فشل استخراج البيانات من الصورة بالذكاء الاصطناعي.');
+          }
+
+          rawRecords = resJson.data || [];
         }
 
-        const rawRecords = resJson.data || [];
         parsed = rawRecords.map((item: any, idx: number) => {
           const name = String(item.name || '').trim();
           const department = String(item.department || '').trim();
@@ -334,11 +402,9 @@ export default function App() {
   };
 
   const handleClearAll = () => {
-    if (window.confirm('هل أنت متأكد من رغبتك في حذف جميع السجلات والبدء من جديد؟')) {
-      setRecords([]);
-      setCurrentFormIndex(0);
-      showNotification('تم مسح جميع السجلات المتاحة.', 'info');
-    }
+    setRecords([]);
+    setCurrentFormIndex(0);
+    showNotification('تم مسح جميع السجلات المتاحة.', 'info');
   };
 
   // Quick action: Autofix typical mistakes or remove duplicates
@@ -386,9 +452,7 @@ export default function App() {
   // Triggering Print Dialogue
   const printSingleForm = (record: LatenessRecord) => {
     if (record.hasError) {
-      if (!window.confirm('هذا السجل يحتوي على أخطاء لم يتم تصحيحها بعد. هل ترغب بطباعته على أي حال؟')) {
-        return;
-      }
+      showNotification('تنبيه: سيتم طباعة هذا السجل رغم احتوائه على أخطاء أو حقول مفقودة.', 'warning');
     }
     setPrintQueue([record]);
     showNotification('يرجى اختيار "حفظ بتنسيق PDF" أو "Save as PDF" من نافذة الطباعة.', 'info');
@@ -398,18 +462,16 @@ export default function App() {
   };
 
   const printAllForms = () => {
-    const errorRecords = records.filter(r => r.hasError);
-    if (errorRecords.length > 0) {
-      if (!window.confirm(`تنبيه: هناك ${errorRecords.length} سجلات تحتوي على أخطاء في الصياغة أو حقول مفقودة. هل تود طباعة جميع السجلات على أي حال؟`)) {
-        return;
-      }
-    }
-    
     if (records.length === 0) {
       showNotification('لا توجد أي سجلات لطباعتها!', 'error');
       return;
     }
 
+    const errorRecords = records.filter(r => r.hasError);
+    if (errorRecords.length > 0) {
+      showNotification(`تنبيه: يتم طباعة ${errorRecords.length} سجلات تحتوي على أخطاء.`, 'warning');
+    }
+    
     setPrintQueue(records);
     showNotification('يرجى اختيار "حفظ بتنسيق PDF" أو "Save as PDF" من نافذة الطباعة لجميع الاستمارات.', 'info');
     setTimeout(() => {
@@ -446,26 +508,25 @@ export default function App() {
   };
 
   return (
-    <div className="dashboard-wrapper min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 font-sans flex flex-col selection:bg-indigo-100 pb-16 transition-colors duration-300" dir="rtl">
+    <div className="dashboard-wrapper min-h-screen bg-[#fcfdfd] dark:bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-50 via-slate-50/50 to-teal-50/50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-slate-200 font-sans flex flex-col selection:bg-emerald-200 dark:selection:bg-emerald-900 pb-16 transition-colors duration-500" dir="rtl">
       
       {/* HEADER BAR */}
-      <header className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white shadow-xl border-b border-slate-800 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(129,140,248,0.15),rgba(255,255,255,0))]"></div>
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex flex-col md:flex-row md:items-center md:justify-between gap-5 relative z-10">
+      <header className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl shadow-sm border-b border-white/60 dark:border-slate-800/60 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col md:flex-row md:items-center md:justify-between gap-5 relative z-10">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-600/90 backdrop-blur-sm flex items-center justify-center shadow-inner border border-indigo-500/50">
-              <Printer className="w-7 h-7 text-white" />
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white transform rotate-3">
+              <Printer className="w-7 h-7" />
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold tracking-tight text-white font-sans">
+                <h1 className="text-2xl font-extrabold tracking-tight text-slate-800 dark:text-white font-sans drop-shadow-sm">
                   منظومة طباعة استمارات أعذار التأخير
                 </h1>
-                <span className="text-[11px] bg-indigo-500/20 text-indigo-200 font-semibold px-2.5 py-0.5 rounded-full border border-indigo-400/20">
+                <span className="text-[11px] bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-emerald-700 dark:text-emerald-300 font-bold px-3 py-1 rounded-full border border-emerald-100 dark:border-emerald-800/50 shadow-sm">
                   إصدار رسمي v4
                 </span>
               </div>
-              <p className="text-sm text-slate-300 mt-1 font-medium opacity-90">
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
                 الشركة العامة لإنتاج الطاقة الكهربائية - الفرات الأوسط | قسم الجودة والتطوير المؤسسي
               </p>
             </div>
@@ -473,32 +534,39 @@ export default function App() {
 
           <div className="flex flex-wrap gap-3 items-center">
             <button
+              onClick={() => setShowSettings(true)}
+              className="p-3 rounded-2xl border border-white/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all duration-300 cursor-pointer hover:shadow-sm backdrop-blur-sm hover:-translate-y-0.5"
+              title="إعدادات النظام (API Key)"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+            <button
               onClick={() => setShowInstructions(!showInstructions)}
-              className={`p-2.5 rounded-xl border transition-all duration-200 cursor-pointer ${showInstructions ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 shadow-sm' : 'border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:shadow-md'}`}
+              className={`p-3 rounded-2xl border transition-all duration-300 cursor-pointer backdrop-blur-sm hover:-translate-y-0.5 ${showInstructions ? 'border-emerald-200 bg-emerald-100/50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 shadow-sm' : 'border-white/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:shadow-sm'}`}
               title={showInstructions ? "إخفاء التعليمات" : "إظهار التعليمات"}
             >
               <HelpCircle className="w-5 h-5" />
             </button>
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 active:bg-slate-750 text-slate-300 transition-all duration-200 cursor-pointer hover:shadow-md"
+              className="p-3 rounded-2xl border border-white/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all duration-300 cursor-pointer hover:shadow-sm backdrop-blur-sm hover:-translate-y-0.5"
               title="تغيير المظهر"
             >
-              {isDarkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5" />}
+              {isDarkMode ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5" />}
             </button>
             <button
               onClick={downloadSampleCSV}
-              className="flex items-center gap-2 px-4 py-2.5 bg-slate-800/80 hover:bg-slate-700 active:bg-slate-750 text-slate-200 text-sm font-semibold rounded-xl border border-slate-700 transition-all duration-200 cursor-pointer hover:shadow-md"
+              className="flex items-center gap-2 px-5 py-3 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-bold rounded-2xl border border-white/60 dark:border-slate-700/60 transition-all duration-300 cursor-pointer hover:shadow-sm backdrop-blur-sm hover:-translate-y-0.5"
               title="تنزيل ملف تجريبي لتعبئته ورفعه"
             >
-              <FileDown className="w-4 h-4 text-indigo-400" />
+              <FileDown className="w-4 h-4 text-emerald-500" />
               <span>نموذج (CSV)</span>
             </button>
             <button
               onClick={printAllForms}
               disabled={records.length === 0}
-              className={`flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-lg transition-all duration-200 hover:-translate-y-0.5 cursor-pointer ${
-                records.length === 0 ? 'opacity-50 pointer-events-none' : 'ring-2 ring-indigo-500/30 ring-offset-2 ring-offset-slate-900'
+              className={`flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-emerald-500/25 transition-all duration-300 hover:-translate-y-0.5 cursor-pointer ${
+                records.length === 0 ? 'opacity-50 pointer-events-none' : 'ring-2 ring-emerald-500/20 ring-offset-2 ring-offset-[#fcfdfd] dark:ring-offset-slate-900'
               }`}
             >
               <Printer className="w-4 h-4" />
@@ -507,6 +575,66 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* SETTINGS MODAL */}
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                    <Key className="w-5 h-5" />
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">إعدادات النظام والربط</h2>
+                </div>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-6">
+                <div>
+                  <label htmlFor="apiKey" className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                    مفتاح API الخاص بـ Gemini (للنشر على Netlify)
+                  </label>
+                  <input
+                    id="apiKey"
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all font-mono"
+                  />
+                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    من خلال إدخال المفتاح الخاص بك، سيتم معالجة الصور <strong className="text-emerald-600 dark:text-emerald-400">مباشرة من المتصفح</strong> دون الحاجة للخوادم (Backend). هذا الخيار مثالي للاستضافة الثابتة المجانية مثل Netlify. يتم استخدام النموذج <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">gemini-1.5-flash</code> الأوفر لاستهلاك التوكن ليتناسب مع الخطة المجانية.
+                  </p>
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex justify-end">
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-sm font-bold rounded-xl shadow-md transition-all cursor-pointer"
+                >
+                  حفظ وإغلاق
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* BODY CONTENT */}
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 flex-1 w-full space-y-6">
@@ -520,14 +648,19 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               className={`p-4 rounded-xl border flex items-start gap-3 shadow-sm ${
                 notification.type === 'error'
-                  ? 'bg-rose-50 border-rose-100 text-rose-800'
+                  ? 'bg-rose-50 border-rose-100 text-rose-800 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-200'
+                  : notification.type === 'warning'
+                  ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/30 dark:border-amber-800 dark:text-amber-200'
                   : notification.type === 'info'
-                  ? 'bg-indigo-50 border-indigo-100 text-indigo-800'
-                  : 'bg-emerald-50 border-emerald-100 text-emerald-800'
+                  ? 'bg-blue-50 border-blue-100 text-blue-800 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-200'
+                  : 'bg-emerald-50 border-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-200'
               }`}
             >
               <Info className={`w-5 h-5 shrink-0 ${
-                notification.type === 'error' ? 'text-rose-600' : notification.type === 'info' ? 'text-indigo-600' : 'text-emerald-600'
+                notification.type === 'error' ? 'text-rose-600 dark:text-rose-400' : 
+                notification.type === 'warning' ? 'text-amber-600 dark:text-amber-400' : 
+                notification.type === 'info' ? 'text-blue-600 dark:text-blue-400' : 
+                'text-emerald-600 dark:text-emerald-400'
               }`} />
               <div className="text-sm font-medium flex-1">
                 {notification.text}
@@ -551,12 +684,15 @@ export default function App() {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`relative bg-white dark:bg-slate-900 rounded-2xl border-2 border-dashed p-10 text-center flex flex-col items-center justify-center transition-all duration-300 h-full min-h-[260px] group ${
+              className={`relative rounded-3xl border-2 border-dashed p-10 text-center flex flex-col items-center justify-center transition-all duration-300 h-full min-h-[280px] group overflow-hidden ${
                 isDragging 
-                  ? 'border-indigo-500 bg-indigo-50/80 dark:bg-indigo-900/20 scale-[1.02] shadow-inner' 
-                  : 'border-slate-300 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 shadow-sm hover:shadow-md'
+                  ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-900/20 scale-[1.02] shadow-inner' 
+                  : 'border-slate-300 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50 hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-white dark:hover:bg-slate-900 shadow-sm hover:shadow-lg backdrop-blur-sm'
               }`}
             >
+              {/* Subtle background glow */}
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/30 to-transparent dark:from-emerald-900/10 dark:to-transparent pointer-events-none opacity-50"></div>
+
               <input
                 type="file"
                 ref={fileInputRef}
@@ -566,45 +702,45 @@ export default function App() {
               />
 
               {isLoading ? (
-                <div className="flex flex-col items-center space-y-5 w-full max-w-md mx-auto">
-                  <RefreshCw className="w-12 h-12 text-indigo-600 dark:text-indigo-400 animate-spin" />
-                  <div className="space-y-1 text-center">
-                    <p className="text-base font-bold text-slate-800 dark:text-slate-100">جاري معالجة وتدقيق الملف بالذكاء الاصطناعي...</p>
+                <div className="flex flex-col items-center space-y-6 w-full max-w-md mx-auto relative z-10">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-emerald-400 dark:bg-emerald-600 blur-xl opacity-20 rounded-full"></div>
+                    <RefreshCw className="w-14 h-14 text-emerald-500 dark:text-emerald-400 animate-spin relative z-10" />
+                  </div>
+                  <div className="space-y-1.5 text-center">
+                    <p className="text-lg font-bold text-slate-800 dark:text-slate-100 font-sans tracking-tight">جاري معالجة وتدقيق الملف بالذكاء الاصطناعي...</p>
                     <p className="text-sm text-slate-500 dark:text-slate-400">نستخرج البيانات ونطابق الهيكل الثابت بدقة تامة</p>
                   </div>
                   
                   {/* Progress Bar */}
-                  <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-4 mt-4 overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner">
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-3 mt-4 overflow-hidden shadow-inner border border-slate-200/50 dark:border-slate-700/50">
                     <motion.div 
-                      className="bg-indigo-600 h-full rounded-full flex items-center justify-center relative overflow-hidden"
+                      className="bg-gradient-to-r from-emerald-500 to-teal-600 h-full rounded-full flex items-center justify-center relative overflow-hidden shadow-sm"
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
                       transition={{ duration: 0.3, ease: "easeOut" }}
                     >
                       <div className="absolute inset-0 bg-white/20 w-full h-full animate-shimmer" style={{ backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)' }}></div>
-                      {progress > 5 && (
-                        <span className="text-[10px] text-white font-bold relative z-10 drop-shadow-sm">{progress}%</span>
-                      )}
                     </motion.div>
                   </div>
                 </div>
               ) : (
-                <>
-                  <div className="w-16 h-16 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center mb-5 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform duration-300">
-                    <Upload className="w-8 h-8" />
+                <div className="relative z-10 flex flex-col items-center">
+                  <div className="w-20 h-20 rounded-3xl bg-emerald-50/80 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800/50 flex items-center justify-center mb-6 text-emerald-500 dark:text-emerald-400 group-hover:scale-105 group-hover:-translate-y-1 transition-all duration-300 shadow-sm">
+                    <Upload className="w-10 h-10" />
                   </div>
                   
-                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 font-sans mb-2">
+                  <h3 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 font-sans mb-3 tracking-tight">
                     اسحب ملف الموقف أو صورة الجدول المطبوع هنا
                   </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md leading-relaxed mb-6">
+                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md leading-relaxed mb-8">
                     يدعم ملفات إكسل <strong className="text-slate-700 dark:text-slate-300">(.xlsx)</strong>، وورد <strong className="text-slate-700 dark:text-slate-300">(.docx)</strong>، أو صور الجدول المطبوع <strong className="text-slate-700 dark:text-slate-300">(PNG, JPG)</strong> ليقوم الذكاء الاصطناعي بقراءتها آلياً.
                   </p>
 
-                  <div className="flex gap-3">
+                  <div className="flex gap-4">
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md transition-all hover:-translate-y-0.5 cursor-pointer ring-2 ring-indigo-500/20 ring-offset-2 ring-offset-white dark:ring-offset-slate-900"
+                      className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                     >
                       تصفح الملفات
                     </button>
@@ -612,42 +748,42 @@ export default function App() {
                     {records.length > 0 && (
                       <button
                         onClick={handleClearAll}
-                        className="px-5 py-2.5 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-400 font-bold text-sm rounded-xl border border-rose-200 dark:border-rose-800/50 transition-all cursor-pointer"
+                        className="px-6 py-3 bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/30 text-rose-500 dark:text-rose-400 font-bold text-sm rounded-2xl border border-rose-100 dark:border-rose-900/30 hover:border-rose-200 dark:hover:border-rose-800 transition-all cursor-pointer shadow-sm hover:shadow"
                       >
                         مسح الجدول
                       </button>
                     )}
                   </div>
-                </>
+                </div>
               )}
             </div>
           </div>
 
           {/* Core System Instructions Guidelines */}
           {showInstructions && (
-            <div className="bg-slate-900 text-slate-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between border border-slate-800 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl"></div>
+            <div className="bg-slate-900/95 text-slate-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between border border-slate-800 relative overflow-hidden backdrop-blur-md">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl"></div>
               
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-indigo-400">
+              <div className="space-y-4 relative z-10">
+                <div className="flex items-center gap-2 text-emerald-400">
                   <HelpCircle className="w-5 h-5" />
                   <h3 className="text-sm font-bold font-sans">تعليمات ومواصفات عمود الجدول</h3>
                 </div>
                 
                 <ul className="space-y-2 text-xs text-slate-300 leading-relaxed list-decimal list-inside">
                   <li>يجب أن يحتوي الملف على أعمدة: <strong className="text-white">ت، الاسم، القسم، التاريخ، وقت التأخير</strong>.</li>
-                  <li>يدعم رفع <strong className="text-indigo-400">صور الجدول المطبوع/الملتقط</strong> حيث يقوم الذكاء الاصطناعي بتحليله فورياً وتعبئته.</li>
-                  <li>عند وجود وقتين في خلية البصمة (مثل <span className="font-mono text-indigo-300">"08:04 08:04"</span>)، يقوم النظام تلقائياً باستخلاص القيمة الأولى فقط لتجنب الأخطاء.</li>
-                  <li>يتم حساب <strong className="text-white">دقائق التأخير</strong> تلقائياً كفارق بالدقائق عن موعد الحضور الرسمي وهو الساعة <strong className="text-indigo-400">08:00 صباحاً</strong>.</li>
+                  <li>يدعم رفع <strong className="text-emerald-400">صور الجدول المطبوع/الملتقط</strong> حيث يقوم الذكاء الاصطناعي بتحليله فورياً وتعبئته.</li>
+                  <li>عند وجود وقتين في خلية البصمة (مثل <span className="font-mono text-emerald-300">"08:04 08:04"</span>)، يقوم النظام تلقائياً باستخلاص القيمة الأولى فقط لتجنب الأخطاء.</li>
+                  <li>يتم حساب <strong className="text-white">دقائق التأخير</strong> تلقائياً كفارق بالدقائق عن موعد الحضور الرسمي وهو الساعة <strong className="text-emerald-400">08:00 صباحاً</strong>.</li>
                   <li>يبقى قالب استمارة العذر ثابتاً ومطابقاً حرفياً للاستمارة الرسمية رقم <strong className="text-white">MOE/P3-FO-03</strong> دون تغيير.</li>
                 </ul>
               </div>
 
-              <div className="mt-5 pt-4 border-t border-slate-800 flex justify-between items-center">
-                <span className="text-[10px] text-slate-400 font-medium">الرمز: MOE/P3-FO-03 (الإصدار 4)</span>
+              <div className="mt-5 pt-4 border-t border-slate-800/80 flex justify-between items-center relative z-10">
+                <span className="text-[10px] text-slate-500 font-medium">الرمز: MOE/P3-FO-03 (الإصدار 4)</span>
                 <button 
                   onClick={handleAutoCleanData}
-                  className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 font-bold transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-xs text-emerald-300 hover:text-emerald-200 hover:bg-emerald-500/20 font-bold transition-colors cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>إصلاح تلقائي للأخطاء</span>
@@ -659,13 +795,13 @@ export default function App() {
         </div>
 
         {/* TABS SELECTOR */}
-        <div className="flex border-b border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 px-2 pt-2 rounded-t-2xl shadow-sm overflow-x-auto no-scrollbar whitespace-nowrap">
+        <div className="flex bg-white/60 dark:bg-slate-900/50 p-2 rounded-full shadow-inner overflow-x-auto no-scrollbar whitespace-nowrap border border-white/60 dark:border-slate-800/50 backdrop-blur-sm">
           <button
             onClick={() => setActiveTab('preview')}
-            className={`px-6 py-3.5 text-sm font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2.5 ${
+            className={`flex-1 px-6 py-3.5 text-sm font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 rounded-full ${
               activeTab === 'preview' 
-                ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-t-lg' 
-                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-t-lg'
+                ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700' 
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/50'
             }`}
           >
             <FileSpreadsheet className="w-4 h-4" />
@@ -680,10 +816,10 @@ export default function App() {
               }
               setActiveTab('individual');
             }}
-            className={`px-6 py-3.5 text-sm font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2.5 ${
+            className={`flex-1 px-6 py-3.5 text-sm font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 rounded-full ${
               activeTab === 'individual' 
-                ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-t-lg' 
-                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-t-lg'
+                ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700' 
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/50'
             }`}
           >
             <FileText className="w-4 h-4" />
@@ -698,10 +834,10 @@ export default function App() {
               }
               setActiveTab('all-forms');
             }}
-            className={`px-6 py-3.5 text-sm font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2.5 ${
+            className={`flex-1 px-6 py-3.5 text-sm font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 rounded-full ${
               activeTab === 'all-forms' 
-                ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-t-lg' 
-                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-t-lg'
+                ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700' 
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/50'
             }`}
           >
             <Printer className="w-4 h-4" />
@@ -711,25 +847,67 @@ export default function App() {
 
         {/* SEARCH BAR (For quick queries on long lists) */}
         {activeTab === 'preview' && records.length > 0 && (
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3">
+          <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-white/60 dark:border-slate-800 shadow-sm flex items-center gap-3">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-gray-400 dark:text-gray-500 absolute right-3 top-2.5" />
+              <Search className="w-4 h-4 text-emerald-400 dark:text-emerald-500 absolute right-4 top-3" />
               <input
                 type="text"
                 placeholder="ابحث عن موظف بالاسم، أو القسم، أو تاريخ التأخير..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pr-10 pl-4 py-2 border border-gray-200 dark:border-slate-700 bg-transparent rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200"
+                className="w-full pr-10 pl-4 py-2.5 border border-white/60 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-800 dark:text-slate-200 backdrop-blur-sm"
               />
             </div>
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery('')}
-                className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 font-bold cursor-pointer"
+                className="text-xs text-slate-400 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 font-bold cursor-pointer transition-colors"
               >
                 إعادة تعيين
               </button>
             )}
+          </div>
+        )}
+
+        {/* PRINT SETTINGS */}
+        {activeTab !== 'preview' && (
+          <div className="bg-white/60 dark:bg-slate-900/60 p-4 rounded-3xl border border-white/60 dark:border-slate-800 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between backdrop-blur-md">
+            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+              <Settings className="w-5 h-5 text-emerald-500" />
+              <h3 className="font-bold text-sm">إعدادات الطباعة</h3>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-4 text-sm font-medium">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={printSettings.showHeader}
+                  onChange={(e) => setPrintSettings(prev => ({ ...prev, showHeader: e.target.checked }))}
+                  className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
+                />
+                <span className="text-slate-600 dark:text-slate-300">عرض الترويسة</span>
+              </label>
+              
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={printSettings.showDate}
+                  onChange={(e) => setPrintSettings(prev => ({ ...prev, showDate: e.target.checked }))}
+                  className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
+                />
+                <span className="text-slate-600 dark:text-slate-300">عرض التاريخ</span>
+              </label>
+
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="ملاحظات إضافية على الاستمارة..." 
+                  value={printSettings.customNote}
+                  onChange={(e) => setPrintSettings(prev => ({ ...prev, customNote: e.target.value }))}
+                  className="w-64 px-3 py-1.5 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-lg text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
           </div>
         )}
 
@@ -747,12 +925,12 @@ export default function App() {
             <div className="space-y-6">
               
               {/* Controls layout */}
-              <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="bg-white/60 dark:bg-slate-900/60 p-4 rounded-3xl border border-white/60 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-md">
                 <div className="flex items-center gap-2.5">
                   <button
                     onClick={() => setCurrentFormIndex(prev => Math.max(0, prev - 1))}
                     disabled={currentFormIndex === 0}
-                    className="p-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 disabled:opacity-40 rounded-xl text-gray-700 dark:text-gray-300 transition-colors cursor-pointer"
+                    className="p-2.5 bg-white/80 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 disabled:opacity-40 rounded-xl text-emerald-700 dark:text-slate-300 transition-colors cursor-pointer shadow-sm"
                     title="الاستمارة السابقة"
                   >
                     <ChevronRight className="w-5 h-5" />
@@ -765,7 +943,7 @@ export default function App() {
                   <button
                     onClick={() => setCurrentFormIndex(prev => Math.min(records.length - 1, prev + 1))}
                     disabled={currentFormIndex === records.length - 1}
-                    className="p-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 disabled:opacity-40 rounded-xl text-gray-700 dark:text-gray-300 transition-colors cursor-pointer"
+                    className="p-2.5 bg-white/80 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 disabled:opacity-40 rounded-xl text-emerald-700 dark:text-slate-300 transition-colors cursor-pointer shadow-sm"
                     title="الاستمارة التالية"
                   >
                     <ChevronLeft className="w-5 h-5" />
@@ -773,24 +951,24 @@ export default function App() {
                 </div>
 
                 {/* Show short status info of current record */}
-                <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-2 rounded-xl text-xs font-medium border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                  الموظف الحالي: <strong className="text-slate-900 dark:text-slate-100">{records[currentFormIndex]?.name || 'فارغ'}</strong> 
+                <div className="bg-white/60 dark:bg-slate-800/50 px-4 py-2.5 rounded-xl text-xs font-medium border border-white/60 dark:border-slate-800 text-slate-700 dark:text-slate-300 shadow-sm backdrop-blur-sm">
+                  الموظف الحالي: <strong className="text-emerald-700 dark:text-emerald-300">{records[currentFormIndex]?.name || 'فارغ'}</strong> 
                   {records[currentFormIndex]?.department && ` | قسم: ${records[currentFormIndex].department}`}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => printSingleForm(records[currentFormIndex])}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-emerald-400 to-teal-600 hover:from-emerald-500 hover:to-teal-600 active:from-emerald-600 active:to-teal-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer hover:-translate-y-0.5"
                   >
                     <Printer className="w-4 h-4" />
                     <span>طباعة الاستمارة الحالية</span>
                   </button>
                   <button
                     onClick={printAllForms}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 active:bg-slate-900 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 px-4 py-2.5 bg-white/80 dark:bg-slate-700 hover:bg-white dark:hover:bg-slate-600 active:bg-slate-100 dark:active:bg-slate-800 text-slate-700 dark:text-slate-200 border border-white/60 dark:border-slate-600 text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer hover:-translate-y-0.5"
                   >
-                    <FileDown className="w-4 h-4" />
+                    <FileDown className="w-4 h-4 text-emerald-500" />
                     <span>حفظ الكل كـ PDF (دفعة واحدة)</span>
                   </button>
                 </div>
@@ -800,7 +978,7 @@ export default function App() {
               <div className="w-full flex justify-center bg-slate-200/50 dark:bg-slate-800/50 rounded-2xl border border-slate-300/40 dark:border-slate-700 p-2 sm:p-4 overflow-hidden">
                 <div className="responsive-form-wrapper shadow-2xl border border-gray-300 dark:border-slate-600 rounded-lg overflow-hidden bg-white">
                   {records[currentFormIndex] ? (
-                    <OfficialForm record={records[currentFormIndex]} />
+                    <OfficialForm record={records[currentFormIndex]} printSettings={printSettings} />
                   ) : (
                     <div className="p-12 text-center text-gray-400">لا توجد سجلات لعرضها</div>
                   )}
@@ -811,15 +989,15 @@ export default function App() {
           ) : (
             /* ALL FORMS (BATCH PRINTING PREVIEW) */
             <div className="space-y-6">
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm flex items-center justify-between flex-wrap gap-4">
+              <div className="bg-white/60 dark:bg-slate-900/60 p-5 rounded-3xl border border-white/60 dark:border-slate-800 shadow-sm flex items-center justify-between flex-wrap gap-4 backdrop-blur-md">
                 <div>
-                  <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100 mb-1">معاينة الطباعة الجماعية لجميع المنتسبين</h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">يقوم المتصفح تلقائياً بفصل كل موظف في صفحة مستقلة ذات قياس A4.</p>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-1">معاينة الطباعة الجماعية لجميع المنتسبين</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">يقوم المتصفح تلقائياً بفصل كل موظف في صفحة مستقلة ذات قياس A4.</p>
                 </div>
                 
                 <button
                   onClick={printAllForms}
-                  className="flex items-center gap-1.5 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-xs rounded-xl shadow-lg transition-all hover:scale-[1.01] cursor-pointer"
+                  className="flex items-center gap-1.5 px-6 py-3 bg-gradient-to-r from-emerald-400 to-teal-600 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.01] cursor-pointer"
                 >
                   <FileDown className="w-4 h-4" />
                   <span>تأكيد وحفظ الكل كـ PDF دفعة واحدة</span>
@@ -833,7 +1011,7 @@ export default function App() {
                     <div className="absolute top-2 right-2 px-2 py-0.5 bg-slate-900 text-white text-[10px] font-bold rounded-full z-20 no-print">
                       صفحة {idx + 1} ({rec.name || 'فارغ'})
                     </div>
-                    <OfficialForm record={rec} />
+                    <OfficialForm record={rec} printSettings={printSettings} />
                   </div>
                 ))}
               </div>
@@ -847,7 +1025,7 @@ export default function App() {
       <div id="print-root">
         {printQueue.map((rec) => (
           <div key={rec.id}>
-            <OfficialForm record={rec} />
+            <OfficialForm record={rec} printSettings={printSettings} />
           </div>
         ))}
       </div>
