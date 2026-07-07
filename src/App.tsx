@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   FileSpreadsheet, 
   FileText, 
@@ -131,18 +131,33 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'preview' | 'individual' | 'all-forms'>('preview');
   
   // Print settings
-  const [printSettings, setPrintSettings] = useState({
-    showHeader: true,
-    showDate: true,
-    customNote: '',
-    positions: {
-      name: { top: 25.5, right: 18 },
-      department: { top: 27.5, right: 55 },
-      dateCreated: { top: 19.5, left: 8 },
-      dateLateness: { top: 22.0, left: 8 },
-      timeLateness: { top: 23.5, left: 8 }
+  const [printSettings, setPrintSettings] = useState(() => {
+    const saved = localStorage.getItem('printSettings');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // Ignore JSON error
+      }
     }
+    return {
+      showHeader: true,
+      showDate: true,
+      customNote: '',
+      fontFamily: 'Arial, sans-serif',
+      positions: {
+        name: { top: 25.5, right: 18 },
+        department: { top: 27.5, left: 15 },
+        dateCreated: { top: 19.5, left: 8 },
+        dateLateness: { top: 22.0, left: 8 },
+        timeLateness: { top: 23.5, left: 8 }
+      }
+    };
   });
+
+  useEffect(() => {
+    localStorage.setItem('printSettings', JSON.stringify(printSettings));
+  }, [printSettings]);
 
   // Browsing state for individual form preview
   const [currentFormIndex, setCurrentFormIndex] = useState(0);
@@ -915,6 +930,21 @@ export default function App() {
                     className="w-64 px-3 py-1.5 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-lg text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
+
+                <div className="relative">
+                  <select
+                    value={printSettings.fontFamily || 'Arial, sans-serif'}
+                    onChange={(e) => setPrintSettings(prev => ({ ...prev, fontFamily: e.target.value }))}
+                    className="w-32 px-3 py-1.5 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-lg text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  >
+                    <option value="Arial, sans-serif">الخط الافتراضي (Arial)</option>
+                    <option value="'Cairo', sans-serif">Cairo</option>
+                    <option value="'Tajawal', sans-serif">Tajawal</option>
+                    <option value="'Readex Pro', sans-serif">Readex Pro</option>
+                    <option value="'Almarai', sans-serif">Almarai</option>
+                    <option value="'Amiri', serif">Amiri</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -946,8 +976,8 @@ export default function App() {
                       <input type="range" min="20" max="40" step="0.1" value={printSettings.positions?.department?.top ?? 29.7} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, department: { ...prev.positions?.department, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-500 w-12">يمين (X)</span>
-                      <input type="range" min="10" max="50" step="0.1" value={printSettings.positions?.department?.right ?? 35} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, department: { ...prev.positions?.department, right: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
+                      <span className="text-[10px] text-slate-500 w-12">يسار (X)</span>
+                      <input type="range" min="0" max="100" step="0.1" value={printSettings.positions?.department?.left ?? 15} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, department: { ...prev.positions?.department, left: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
                     </div>
                   </div>
 

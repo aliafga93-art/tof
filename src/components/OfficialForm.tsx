@@ -1,13 +1,15 @@
 import React from 'react';
+
 import { LatenessRecord } from '../types';
 
 interface PrintSettings {
   showHeader: boolean;
   showDate: boolean;
   customNote: string;
+  fontFamily?: string;
   positions?: {
     name: { top: number, right: number };
-    department: { top: number, right: number };
+    department: { top: number, left: number };
     dateCreated: { top: number, left: number };
     dateLateness: { top: number, left: number };
     timeLateness: { top: number, left: number };
@@ -50,7 +52,7 @@ export default function OfficialForm({ record, printSettings }: OfficialFormProp
       )}
 
       {/* حاوية النصوص المتغيرة (البيانات) */}
-      <div className="absolute inset-0 z-10 font-bold text-black" style={{ fontSize: '15px' }}>
+      <div className="absolute inset-0 z-10 font-bold text-black" style={{ fontSize: '15px', fontFamily: printSettings?.fontFamily || 'Arial, sans-serif' }}>
         
         {/* الملاحظة الإضافية (إن وجدت) */}
         {printSettings?.customNote && (
@@ -65,7 +67,7 @@ export default function OfficialForm({ record, printSettings }: OfficialFormProp
         </div>
 
         {/* القسم - من بداية السطر */}
-        <div className="absolute" style={{ top: `${printSettings?.positions?.department?.top ?? 27.5}%`, right: `${printSettings?.positions?.department?.right ?? 55}%`, width: '30%', textAlign: 'right' }}>
+        <div className="absolute" style={{ top: `${printSettings?.positions?.department?.top ?? 27.5}%`, left: `${printSettings?.positions?.department?.left ?? 15}%`, width: '30%', textAlign: 'right' }}>
           {record.department}
         </div>
 
