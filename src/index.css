@@ -32,13 +32,17 @@
 
 /* PRINTING DIRECTIVES */
 @media print {  @page { margin: 0; size: A4; }
+  /* Force exact color/background printing for all elements */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   /* Hide all regular dashboard interfaces */
   html, body {
     background-color: #ffffff !important;
     margin: 0 !important;
     padding: 0 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
   }
   
   .dashboard-wrapper, .no-print, button, header, nav, aside {
@@ -58,7 +62,7 @@
     page-break-after: always !important;
     page-break-inside: avoid !important;
     margin: 0 !important;
-    padding: 15mm 12mm 10mm 12mm !important;
+    padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
     height: 297mm !important;
@@ -66,10 +70,8 @@
   }
 }
 
-@media screen {
-  #print-root {
-    display: none !important;
-  }
+#print-root {
+  display: none;
 }
 
 /* Hide scrollbar for tabs on mobile but keep functionality */

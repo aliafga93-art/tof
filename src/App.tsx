@@ -14,18 +14,28 @@ import {
   AlertTriangle, 
   ChevronLeft, 
   ChevronRight, 
-  Download, 
   Search, 
   RefreshCw, 
   Sparkles,
   FileDown,
-  CheckCircle,
+  CheckCircle2,
   HelpCircle,
   Settings,
   Key,
   X,
   Moon,
-  Sun, Save, CheckCircle2
+  Sun, 
+  Save,
+  Clock,
+  Flame,
+  LayoutGrid,
+  TrendingUp,
+  FileTextIcon,
+  Compass,
+  Maximize2,
+  Minimize2,
+  Type,
+  Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LatenessRecord } from './types';
@@ -87,6 +97,31 @@ const INITIAL_DEMO_RECORDS: LatenessRecord[] = [
   }
 ];
 
+// Iraq (Baghdad) Local Time isolated component to prevent full App re-renders every second
+const BaghdadClock = React.memo(() => {
+  const [time, setTime] = useState('');
+  
+  useEffect(() => {
+    const updateTime = () => {
+      const options: Intl.DateTimeFormatOptions = {
+        timeZone: 'Asia/Baghdad',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      };
+      const formatter = new Intl.DateTimeFormat('ar-IQ', options);
+      setTime(formatter.format(new Date()));
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return <span className="font-mono text-indigo-600 dark:text-indigo-400 font-extrabold">{time}</span>;
+});
+BaghdadClock.displayName = 'BaghdadClock';
+
 export default function App() {
   const [apiKey, setApiKey] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -97,7 +132,7 @@ export default function App() {
   
   const [showSettings, setShowSettings] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('gemini_api_key', apiKey);
     }
@@ -117,25 +152,41 @@ export default function App() {
     return INITIAL_DEMO_RECORDS;
   });
   
-  React.useEffect(() => {
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('lateness_records', JSON.stringify(records));
     }
   }, [records]);
 
-  const [showInstructions, setShowInstructions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [activeTab, setActiveTab] = useState<'preview' | 'individual' | 'all-forms'>('preview');
-  
+
   // Print settings
   const [printSettings, setPrintSettings] = useState(() => {
     const saved = localStorage.getItem('printSettings');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return {
+          showHeader: parsed.showHeader ?? true,
+          showDate: parsed.showDate ?? true,
+          showAffiliation: parsed.showAffiliation ?? false,
+          affiliationText: parsed.affiliationText ?? 'محطة كهرباء الخيرات الغازية',
+          customNote: parsed.customNote ?? '',
+          fontFamily: parsed.fontFamily ?? 'Arial',
+          fontSize: parsed.fontSize ?? 15,
+          positions: {
+            name: parsed.positions?.name ?? { top: 25.5, right: 18 },
+            affiliation: parsed.positions?.affiliation ?? { top: 27.5, right: 18 },
+            department: parsed.positions?.department ?? { top: 29.5, left: 15 },
+            dateCreated: parsed.positions?.dateCreated ?? { top: 19.5, left: 8 },
+            dateLateness: parsed.positions?.dateLateness ?? { top: 22.0, left: 8 },
+            timeLateness: parsed.positions?.timeLateness ?? { top: 23.5, left: 8 }
+          }
+        };
       } catch (e) {
         // Ignore JSON error
       }
@@ -143,12 +194,15 @@ export default function App() {
     return {
       showHeader: true,
       showDate: true,
+      showAffiliation: false,
+      affiliationText: 'محطة كهرباء الخيرات الغازية',
       customNote: '',
-      fontFamily: 'Arial, sans-serif',
+      fontFamily: 'Arial',
       fontSize: 15,
       positions: {
         name: { top: 25.5, right: 18 },
-        department: { top: 27.5, left: 15 },
+        affiliation: { top: 27.5, right: 18 },
+        department: { top: 29.5, left: 15 },
         dateCreated: { top: 19.5, left: 8 },
         dateLateness: { top: 22.0, left: 8 },
         timeLateness: { top: 23.5, left: 8 }
@@ -157,6 +211,7 @@ export default function App() {
   });
 
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [previewScale, setPreviewScale] = useState(0.85);
 
   const handleSaveSettings = () => {
     localStorage.setItem('printSettings', JSON.stringify(printSettings));
@@ -172,9 +227,18 @@ export default function App() {
 
   // Feedback notifications
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info' | 'warning'; text: string } | null>({
-    type: 'info',
-    text: 'مرحباً بك! تم ملء الجدول ببيانات تجريبية من صورة استمارة المتأخرين الأصلية لتجربة التطبيق فوراً.'
+    type: 'success',
+    text: 'تمت تهيئة المنظومة بنجاح وتغذية الجدول الأنيق بالبيانات الرسمية من قسم الجودة!'
   });
+
+  // States for Batch Print progress tracking
+  const [isPrintingBatch, setIsPrintingBatch] = useState(false);
+  const [printBatchProgress, setPrintBatchProgress] = useState(0);
+  const [printBatchCurrentIndex, setPrintBatchCurrentIndex] = useState(0);
+  const [printBatchStatus, setPrintBatchStatus] = useState('');
+  const [printBatchReadyCount, setPrintBatchReadyCount] = useState(0);
+  const [printBatchErrorCount, setPrintBatchErrorCount] = useState(0);
+  const cancelPrintRef = useRef<boolean>(false);
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -184,7 +248,7 @@ export default function App() {
     return false;
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
@@ -193,6 +257,17 @@ export default function App() {
       localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
+
+  const [uiScale, setUiScale] = useState<'normal' | 'large' | 'xlarge'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('uiScale') as any) || 'normal';
+    }
+    return 'normal';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('uiScale', uiScale);
+  }, [uiScale]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -274,7 +349,6 @@ export default function App() {
           }
           
           try {
-             // Clean markdown json formatting if the model decided to include it despite responseMimeType
              const cleanJsonStr = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
              rawRecords = JSON.parse(cleanJsonStr);
           } catch(e) {
@@ -396,7 +470,6 @@ export default function App() {
   const handleDeleteRecord = (id: string) => {
     setRecords(prev => {
       const filtered = prev.filter(rec => rec.id !== id);
-      // Adjust current browsing index if out of bounds
       if (currentFormIndex >= filtered.length && filtered.length > 0) {
         setCurrentFormIndex(filtered.length - 1);
       }
@@ -434,7 +507,7 @@ export default function App() {
     showNotification('تم مسح جميع السجلات المتاحة.', 'info');
   };
 
-  // Quick action: Autofix typical mistakes or remove duplicates
+  // Quick action: Autofix typical mistakes
   const handleAutoCleanData = () => {
     let fixCount = 0;
     const cleaned = records.map(rec => {
@@ -476,6 +549,13 @@ export default function App() {
     }
   };
 
+  // Load demo presets
+  const handleLoadDemoData = () => {
+    setRecords(INITIAL_DEMO_RECORDS);
+    setCurrentFormIndex(0);
+    showNotification('تم إعادة تحميل البيانات التجريبية الرسمية لفرات الأوسط.', 'success');
+  };
+
   // Triggering Print Dialogue
   const printSingleForm = (record: LatenessRecord) => {
     if (record.hasError) {
@@ -494,16 +574,60 @@ export default function App() {
       return;
     }
 
-    const errorRecords = records.filter(r => r.hasError);
-    if (errorRecords.length > 0) {
-      showNotification(`تنبيه: يتم طباعة ${errorRecords.length} سجلات تحتوي على أخطاء.`, 'warning');
-    }
-    
-    setPrintQueue(records);
-    showNotification('يرجى اختيار "حفظ بتنسيق PDF" أو "Save as PDF" من نافذة الطباعة لجميع الاستمارات.', 'info');
-    setTimeout(() => {
-      window.print();
-    }, 400);
+    setIsPrintingBatch(true);
+    setPrintBatchProgress(0);
+    setPrintBatchCurrentIndex(0);
+    setPrintBatchReadyCount(0);
+    setPrintBatchErrorCount(0);
+    cancelPrintRef.current = false;
+
+    const total = records.length;
+    let index = 0;
+    let readyCount = 0;
+    let errorCount = 0;
+
+    const processNext = () => {
+      if (cancelPrintRef.current) {
+        setIsPrintingBatch(false);
+        showNotification('تم إلغاء عملية تجهيز الاستمارات للطباعة.', 'info');
+        return;
+      }
+
+      if (index < total) {
+        const record = records[index];
+        if (record.hasError) {
+          errorCount++;
+        } else {
+          readyCount++;
+        }
+
+        setPrintBatchCurrentIndex(index + 1);
+        setPrintBatchReadyCount(readyCount);
+        setPrintBatchErrorCount(errorCount);
+        setPrintBatchStatus(`جاري معالجة وتدقيق استمارة المنتسب: ${record.name || 'غير محدد الاسم'}`);
+        setPrintBatchProgress(Math.round(((index + 1) / total) * 100));
+
+        index++;
+        // Dynamic satisfying simulation speed: from 100ms to 250ms per item
+        const delay = Math.max(100, Math.min(250, 1500 / total));
+        setTimeout(processNext, delay);
+      } else {
+        setPrintBatchStatus('اكتملت المعالجة الاستباقية بنجاح! جاري استدعاء محرك الطباعة لـ PDF...');
+        
+        setTimeout(() => {
+          setPrintQueue(records);
+          showNotification('يرجى اختيار "حفظ بتنسيق PDF" أو "Save as PDF" من نافذة الطباعة لجميع الاستمارات.', 'info');
+          
+          setTimeout(() => {
+            window.print();
+            setIsPrintingBatch(false);
+          }, 400);
+        }, 800);
+      }
+    };
+
+    // Initiate process
+    processNext();
   };
 
   // Filter records based on search query
@@ -534,642 +658,1054 @@ export default function App() {
     showNotification('تم تنزيل النموذج الاسترشادي المتوافق.', 'success');
   };
 
+  // Dynamic statistics calculations
+  const totalLatenessMinutes = records.reduce((sum, r) => sum + r.minutesOfLateness, 0);
+  const totalLatenessHours = (totalLatenessMinutes / 60).toFixed(1);
+  const integrityPercentage = records.length > 0 ? Math.round(((records.length - records.filter(r => r.hasError).length) / records.length) * 100) : 100;
+
   return (
-    <div className="dashboard-wrapper min-h-screen bg-[#fcfdfd] dark:bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-50 via-slate-50/50 to-teal-50/50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-slate-200 font-sans flex flex-col selection:bg-emerald-200 dark:selection:bg-emerald-900 pb-16 transition-colors duration-500" dir="rtl">
+    <div dir="rtl" className="min-h-screen bg-[#f8fafc] dark:bg-slate-950 transition-colors duration-500 font-sans selection:bg-indigo-200 dark:selection:bg-indigo-900 selection:text-indigo-900">
       
-      {/* HEADER BAR */}
-      <header className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl shadow-sm border-b border-white/60 dark:border-slate-800/60 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col md:flex-row md:items-center md:justify-between gap-5 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white transform rotate-3">
-              <Printer className="w-7 h-7" />
-            </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-extrabold tracking-tight text-slate-800 dark:text-white font-sans drop-shadow-sm">
-                  منظومة طباعة استمارات أعذار التأخير
-                </h1>
-                <span className="text-[11px] bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-emerald-700 dark:text-emerald-300 font-bold px-3 py-1 rounded-full border border-emerald-100 dark:border-emerald-800/50 shadow-sm">
-                  إصدار رسمي v4
-                </span>
-              </div>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
-                الشركة العامة لإنتاج الطاقة الكهربائية - الفرات الأوسط | قسم الجودة والتطوير المؤسسي
-              </p>
-            </div>
-          </div>
+      {/* GLOWING BACKGROUND SHARDS */}
+      <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-3xl pointer-events-none z-0"></div>
+      <div className="absolute top-1/3 left-1/4 w-[600px] h-[600px] bg-violet-500/10 dark:bg-violet-500/5 rounded-full blur-3xl pointer-events-none z-0"></div>
+      <div className="absolute bottom-10 right-10 w-[400px] h-[400px] bg-amber-500/10 dark:bg-amber-500/5 rounded-full blur-3xl pointer-events-none z-0"></div>
 
-          <div className="flex flex-wrap gap-3 items-center">
-            <button
-              onClick={() => setShowSettings(true)}
-              className="p-3 rounded-2xl border border-white/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all duration-300 cursor-pointer hover:shadow-sm backdrop-blur-sm hover:-translate-y-0.5"
-              title="إعدادات النظام (API Key)"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setShowInstructions(!showInstructions)}
-              className={`p-3 rounded-2xl border transition-all duration-300 cursor-pointer backdrop-blur-sm hover:-translate-y-0.5 ${showInstructions ? 'border-emerald-200 bg-emerald-100/50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 shadow-sm' : 'border-white/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:shadow-sm'}`}
-              title={showInstructions ? "إخفاء التعليمات" : "إظهار التعليمات"}
-            >
-              <HelpCircle className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-3 rounded-2xl border border-white/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all duration-300 cursor-pointer hover:shadow-sm backdrop-blur-sm hover:-translate-y-0.5"
-              title="تغيير المظهر"
-            >
-              {isDarkMode ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5" />}
-            </button>
-            <button
-              onClick={downloadSampleCSV}
-              className="flex items-center gap-2 px-5 py-3 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-bold rounded-2xl border border-white/60 dark:border-slate-700/60 transition-all duration-300 cursor-pointer hover:shadow-sm backdrop-blur-sm hover:-translate-y-0.5"
-              title="تنزيل ملف تجريبي لتعبئته ورفعه"
-            >
-              <FileDown className="w-4 h-4 text-emerald-500" />
-              <span>نموذج (CSV)</span>
-            </button>
-            <button
-              onClick={printAllForms}
-              disabled={records.length === 0}
-              className={`flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-emerald-500/25 transition-all duration-300 hover:-translate-y-0.5 cursor-pointer ${
-                records.length === 0 ? 'opacity-50 pointer-events-none' : 'ring-2 ring-emerald-500/20 ring-offset-2 ring-offset-[#fcfdfd] dark:ring-offset-slate-900'
-              }`}
-            >
-              <Printer className="w-4 h-4" />
-              <span>طباعة الكل دفعة واحدة ({records.length})</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* SETTINGS MODAL */}
-      <AnimatePresence>
-        {showSettings && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800"
-            >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                    <Key className="w-5 h-5" />
-                  </div>
-                  <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">إعدادات النظام والربط</h2>
-                </div>
-                <button
-                  onClick={() => setShowSettings(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="p-6 space-y-6">
-                <div>
-                  <label htmlFor="apiKey" className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
-                    مفتاح API الخاص بـ Gemini (للنشر على Netlify)
-                  </label>
-                  <input
-                    id="apiKey"
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="AIzaSy..."
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all font-mono"
-                  />
-                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                    من خلال إدخال المفتاح الخاص بك، سيتم معالجة الصور <strong className="text-emerald-600 dark:text-emerald-400">مباشرة من المتصفح</strong> دون الحاجة للخوادم (Backend). هذا الخيار مثالي للاستضافة الثابتة المجانية مثل Netlify. يتم استخدام النموذج <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">gemini-2.5-flash</code> الأوفر لاستهلاك التوكن ليتناسب مع الخطة المجانية.
-                  </p>
-                </div>
-              </div>
-              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex justify-end">
-                <button
-                  onClick={() => setShowSettings(false)}
-                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-sm font-bold rounded-xl shadow-md transition-all cursor-pointer"
-                >
-                  حفظ وإغلاق
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* BODY CONTENT */}
-      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 flex-1 w-full space-y-6">
-        
-        {/* NOTIFICATIONS BAR */}
-        <AnimatePresence>
-          {notification && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className={`p-4 rounded-xl border flex items-start gap-3 shadow-sm ${
-                notification.type === 'error'
-                  ? 'bg-rose-50 border-rose-100 text-rose-800 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-200'
-                  : notification.type === 'warning'
-                  ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/30 dark:border-amber-800 dark:text-amber-200'
-                  : notification.type === 'info'
-                  ? 'bg-blue-50 border-blue-100 text-blue-800 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-200'
-                  : 'bg-emerald-50 border-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-200'
-              }`}
-            >
-              <Info className={`w-5 h-5 shrink-0 ${
-                notification.type === 'error' ? 'text-rose-600 dark:text-rose-400' : 
-                notification.type === 'warning' ? 'text-amber-600 dark:text-amber-400' : 
-                notification.type === 'info' ? 'text-blue-600 dark:text-blue-400' : 
-                'text-emerald-600 dark:text-emerald-400'
-              }`} />
-              <div className="text-sm font-medium flex-1">
-                {notification.text}
-              </div>
-              <button 
-                onClick={() => setNotification(null)}
-                className="text-xs underline hover:no-underline font-bold opacity-80 cursor-pointer ml-1"
+      {/* Main dashboard content, hidden during printing */}
+      <div 
+        className="dashboard-wrapper relative z-10 flex flex-col min-h-screen transition-all duration-300"
+        style={{ zoom: uiScale === 'large' ? 1.08 : uiScale === 'xlarge' ? 1.18 : 1 }}
+      >
+      
+        {/* PREMIUM NAVIGATION BAR */}
+        <header className="bg-white/70 dark:bg-slate-900/70 border-b border-slate-200/50 dark:border-slate-800/50 sticky top-0 z-50 backdrop-blur-xl animate-fadeIn">
+          <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 transition-all duration-300">
+            
+            {/* Logo and branding */}
+            <div className="flex items-center gap-4">
+              <motion.div 
+                animate={{ rotate: [0, 360] }}
+                transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
+                className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white transform hover:scale-105 transition-transform"
               >
-                إغلاق
+                <Printer className="w-7 h-7" />
+              </motion.div>
+              <div>
+                <div className="flex items-center flex-wrap gap-2 sm:gap-3">
+                  <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-800 dark:text-white">
+                    نظام طباعة استمارات أعذار التأخير
+                  </h1>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-bold">
+                  الشركة العامة لإنتاج الطاقة الكهربائية - الفرات الأوسط | قسم تكنولوجيا المعلومات والجودة
+                </p>
+              </div>
+            </div>
+
+            {/* Top Bar Quick Controls */}
+            <div className="flex flex-wrap gap-3 items-center">
+              {/* Iraq Local Time Clock */}
+              <div className="hidden md:flex items-center gap-2 px-4 py-2.5 bg-slate-100/80 dark:bg-slate-800/80 rounded-2xl border border-slate-200/30 dark:border-slate-700/30 text-xs font-bold text-slate-600 dark:text-slate-300">
+                <Clock className="w-4 h-4 text-indigo-500 animate-spin-slow" />
+                <span>توقيت العراق المحلي:</span>
+                <BaghdadClock />
+              </div>
+
+              {/* API settings */}
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-900 text-slate-600 dark:text-slate-300 transition-all duration-300 cursor-pointer hover:shadow-md hover:-translate-y-0.5"
+                title="إعدادات نظام الذكاء الاصطناعي"
+              >
+                <Settings className="w-5 h-5" />
               </button>
+
+              {/* Theme toggle */}
+              <button
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                className="p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-900 text-slate-600 dark:text-slate-300 transition-all duration-300 cursor-pointer hover:shadow-md hover:-translate-y-0.5"
+                title="تغيير مظهر المنصة"
+              >
+                {isDarkMode ? <Sun className="w-5 h-5 text-amber-500 animate-bounce" /> : <Moon className="w-5 h-5" />}
+              </button>
+
+              {/* Master Print Button */}
+              <button
+                onClick={printAllForms}
+                disabled={records.length === 0}
+                className={`flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-700 hover:from-indigo-700 hover:to-violet-700 text-white font-extrabold text-xs rounded-2xl shadow-xl shadow-indigo-500/20 transition-all duration-300 hover:-translate-y-0.5 cursor-pointer ${
+                  records.length === 0 ? 'opacity-50 pointer-events-none' : 'ring-4 ring-indigo-500/20 ring-offset-2 ring-offset-slate-50 dark:ring-offset-slate-950'
+                }`}
+              >
+                <Printer className="w-4 h-4" />
+                <span>طباعة الكل دفعة واحدة ({records.length})</span>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* SETTINGS MODAL */}
+        <AnimatePresence>
+          {showSettings && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200/80 dark:border-slate-800"
+              >
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                      <Key className="w-5 h-5" />
+                    </div>
+                    <h2 className="text-lg font-extrabold text-slate-850 dark:text-slate-100">إعدادات الربط والذكاء الاصطناعي</h2>
+                  </div>
+                  <button
+                    onClick={() => setShowSettings(false)}
+                    className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="p-6 space-y-6">
+                  <div>
+                    <label htmlFor="apiKey" className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-2 uppercase">
+                      مفتاح API الخاص بك لـ Gemini
+                    </label>
+                    <input
+                      id="apiKey"
+                      type="password"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="AIzaSy..."
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-mono text-sm"
+                    />
+                    <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                      عند وضع المفتاح الشخصي، سيقوم المتصفح بقراءة صور استمارات البصمة الورقية واستخلاصها كـ JSON <strong className="text-indigo-600 dark:text-indigo-400 font-extrabold">فوراً ومجاناً في ثوانٍ معدودة</strong>. يتم تشفير المفتاح محلياً في جهازك ولا يتم نقله أبداً لأي خادم وسيط.
+                    </p>
+                  </div>
+                </div>
+                <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/20 flex justify-end">
+                  <button
+                    onClick={() => setShowSettings(false)}
+                    className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-black rounded-xl shadow-md transition-all cursor-pointer"
+                  >
+                    موافق، حفظ الربط
+                  </button>
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* TOP LAYOUT: FILE UPLOAD DRAG-AND-DROP */}
-        <div className={`grid grid-cols-1 ${showInstructions ? 'lg:grid-cols-3' : 'lg:grid-cols-1'} gap-6`}>
-          
-          {/* File Upload Zone */}
-          <div className={showInstructions ? 'lg:col-span-2' : 'lg:col-span-1'}>
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`relative rounded-3xl border-2 border-dashed p-10 text-center flex flex-col items-center justify-center transition-all duration-300 h-full min-h-[280px] group overflow-hidden ${
-                isDragging 
-                  ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-900/20 scale-[1.02] shadow-inner' 
-                  : 'border-slate-300 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50 hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-white dark:hover:bg-slate-900 shadow-sm hover:shadow-lg backdrop-blur-sm'
-              }`}
+        {/* BATCH PRINT PROGRESS MODAL */}
+        <AnimatePresence>
+          {isPrintingBatch && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md no-print"
+              dir="rtl"
             >
-              {/* Subtle background glow */}
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/30 to-transparent dark:from-emerald-900/10 dark:to-transparent pointer-events-none opacity-50"></div>
+              <motion.div
+                initial={{ scale: 0.95, y: 15, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.95, y: 15, opacity: 0 }}
+                className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-xl w-full overflow-hidden border border-slate-200/85 dark:border-slate-800/85 p-6 sm:p-8 relative"
+              >
+                {/* Visual design accents */}
+                <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none"></div>
+                <div className="absolute -top-12 -left-12 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-violet-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                accept=".xlsx,.xls,.docx,image/*"
-                className="hidden"
-              />
+                <div className="relative z-10 space-y-6 text-center">
+                  {/* Header / Icon */}
+                  <div className="flex flex-col items-center">
+                    <div className="relative animate-pulse">
+                      <div className="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full"></div>
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 text-white relative z-10">
+                        <Printer className="w-8 h-8 animate-bounce" />
+                      </div>
+                    </div>
+                    <h2 className="text-xl font-extrabold text-slate-850 dark:text-slate-100 mt-4 tracking-tight">
+                      معالج تهيئة وتجهيز الاستمارات للطباعة
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-semibold">
+                      جاري تدقيق وتجميع {records.length} استمارة أعذار تأخير لإنشاء ملف الطباعة الموحد
+                    </p>
+                  </div>
 
-              {isLoading ? (
-                <div className="flex flex-col items-center space-y-6 w-full max-w-md mx-auto relative z-10">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-emerald-400 dark:bg-emerald-600 blur-xl opacity-20 rounded-full"></div>
-                    <RefreshCw className="w-14 h-14 text-emerald-500 dark:text-emerald-400 animate-spin relative z-10" />
+                  {/* Progress Stats Indicators */}
+                  <div className="grid grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-950/40 p-4 rounded-2xl border border-slate-200/40 dark:border-slate-800/40 text-center font-bold">
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block">إجمالي المستندات</span>
+                      <span className="text-xl font-mono text-slate-800 dark:text-white font-black">
+                        {records.length}
+                      </span>
+                    </div>
+                    <div className="space-y-1 border-r border-slate-200/50 dark:border-slate-800/50">
+                      <span className="text-[10px] text-indigo-500 block">سليمة ومكتملة</span>
+                      <span className="text-xl font-mono text-indigo-600 dark:text-indigo-400 font-black">
+                        {printBatchReadyCount}
+                      </span>
+                    </div>
+                    <div className="space-y-1 border-r border-slate-200/50 dark:border-slate-800/50">
+                      <span className="text-[10px] text-rose-500 block">تحتوي على تنبيهات</span>
+                      <span className="text-xl font-mono text-rose-600 dark:text-rose-400 font-black">
+                        {printBatchErrorCount}
+                      </span>
+                    </div>
                   </div>
-                  <div className="space-y-1.5 text-center">
-                    <p className="text-lg font-bold text-slate-800 dark:text-slate-100 font-sans tracking-tight">جاري معالجة وتدقيق الملف بالذكاء الاصطناعي...</p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">نستخرج البيانات ونطابق الهيكل الثابت بدقة تامة</p>
-                  </div>
-                  
-                  {/* Progress Bar */}
-                  <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-3 mt-4 overflow-hidden shadow-inner border border-slate-200/50 dark:border-slate-700/50">
-                    <motion.div 
-                      className="bg-gradient-to-r from-emerald-500 to-teal-600 h-full rounded-full flex items-center justify-center relative overflow-hidden shadow-sm"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.3, ease: "easeOut" }}
-                    >
-                      <div className="absolute inset-0 bg-white/20 w-full h-full animate-shimmer" style={{ backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)' }}></div>
-                    </motion.div>
-                  </div>
-                </div>
-              ) : (
-                <div className="relative z-10 flex flex-col items-center">
-                  <div className="w-20 h-20 rounded-3xl bg-emerald-50/80 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800/50 flex items-center justify-center mb-6 text-emerald-500 dark:text-emerald-400 group-hover:scale-105 group-hover:-translate-y-1 transition-all duration-300 shadow-sm">
-                    <Upload className="w-10 h-10" />
-                  </div>
-                  
-                  <h3 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 font-sans mb-3 tracking-tight">
-                    اسحب ملف الموقف أو صورة الجدول المطبوع هنا
-                  </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md leading-relaxed mb-8">
-                    يدعم ملفات إكسل <strong className="text-slate-700 dark:text-slate-300">(.xlsx)</strong>، وورد <strong className="text-slate-700 dark:text-slate-300">(.docx)</strong>، أو صور الجدول المطبوع <strong className="text-slate-700 dark:text-slate-300">(PNG, JPG)</strong> ليقوم الذكاء الاصطناعي بقراءتها آلياً.
-                  </p>
 
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-                    >
-                      تصفح الملفات
-                    </button>
-                    
-                    {records.length > 0 && (
-                      <button
-                        onClick={handleClearAll}
-                        className="px-6 py-3 bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/30 text-rose-500 dark:text-rose-400 font-bold text-sm rounded-2xl border border-rose-100 dark:border-rose-900/30 hover:border-rose-200 dark:hover:border-rose-800 transition-all cursor-pointer shadow-sm hover:shadow"
+                  {/* Linear Progress Bar with Dynamic glow */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 font-bold px-1">
+                      <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
+                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
+                        <span className="truncate max-w-[300px] md:max-w-md">{printBatchStatus}</span>
+                      </span>
+                      <span className="font-mono text-sm text-slate-800 dark:text-white font-black">{printBatchProgress}%</span>
+                    </div>
+
+                    <div className="w-full bg-slate-100 dark:bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-200/50 dark:border-slate-800 p-0.5 shadow-inner">
+                      <motion.div
+                        className="bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-700 h-full rounded-full relative overflow-hidden"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${printBatchProgress}%` }}
+                        transition={{ duration: 0.1, ease: "easeOut" }}
                       >
-                        مسح الجدول
-                      </button>
-                    )}
+                        <div className="absolute inset-0 bg-white/25 w-full h-full animate-shimmer" style={{ backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)' }}></div>
+                      </motion.div>
+                    </div>
+                  </div>
+
+                  {/* Secondary Details & Warning if there are errors */}
+                  {printBatchErrorCount > 0 && (
+                    <div className="p-3 bg-amber-500/10 dark:bg-amber-500/15 text-amber-800 dark:text-amber-400 text-xs rounded-xl border border-amber-500/20 text-right flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
+                      <div>
+                        <span className="font-bold block">ملاحظة تنظيمية:</span>
+                        <span className="text-[11px] leading-relaxed">يرصد النظام وجود {printBatchErrorCount} استمارة تحتوي على أخطاء أو حقول فارغة (مثل الاسم مفقود). سيتم دمجها في ملف الطباعة، ولكن ننصح بمراجعتها وصيانتها لاحقاً.</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cancel Button */}
+                  <div className="pt-2 flex justify-center">
+                    <button
+                      onClick={() => {
+                        cancelPrintRef.current = true;
+                      }}
+                      className="px-6 py-2.5 bg-slate-100 hover:bg-rose-500/15 text-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-rose-950/40 hover:text-rose-500 dark:hover:text-rose-400 font-black text-xs rounded-2xl transition-all cursor-pointer border border-slate-200/40 dark:border-slate-700/50"
+                    >
+                      إلغاء المعالجة والرجوع
+                    </button>
                   </div>
                 </div>
-              )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* BODY MAIN SECTION */}
+        <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex-1 w-full space-y-6 transition-all duration-300">
+          
+          {/* NOTIFICATION FEEDBACK TOASTS */}
+          <AnimatePresence>
+            {notification && (
+              <motion.div
+                initial={{ opacity: 0, y: -15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                className={`p-4 rounded-2xl border flex items-start gap-3.5 shadow-lg relative overflow-hidden ${
+                  notification.type === 'error'
+                    ? 'bg-rose-50 border-rose-200 text-rose-900 dark:bg-rose-950/25 dark:border-rose-900/50 dark:text-rose-200'
+                    : notification.type === 'warning'
+                    ? 'bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/25 dark:border-amber-900/50 dark:text-amber-200'
+                    : notification.type === 'info'
+                    ? 'bg-blue-50 border-blue-200 text-blue-900 dark:bg-blue-950/25 dark:border-blue-900/50 dark:text-blue-200'
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/25 dark:border-emerald-900/50 dark:text-emerald-200'
+                }`}
+              >
+                {/* Visual colored pill indicator */}
+                <div className={`absolute top-0 bottom-0 right-0 w-1 ${
+                  notification.type === 'error' ? 'bg-rose-500' :
+                  notification.type === 'warning' ? 'bg-amber-500' :
+                  notification.type === 'info' ? 'bg-blue-500' :
+                  'bg-emerald-500'
+                }`}></div>
+
+                <div className="flex-1 text-xs font-bold leading-relaxed flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 shrink-0 text-emerald-500" />
+                  <span>{notification.text}</span>
+                </div>
+                <button 
+                  onClick={() => setNotification(null)}
+                  className="text-[10px] uppercase font-extrabold text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer ml-1"
+                >
+                  إغلاق
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* DYNAMIC BENTO STATS BOARD */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+            
+            {/* Stat Box 1: Records Count */}
+            <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-center justify-between group overflow-hidden relative">
+              <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-indigo-500/5 rounded-full group-hover:scale-125 transition-transform"></div>
+              <div className="space-y-1">
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold block uppercase tracking-wider">سجلات المتأخرين المكتشفة</span>
+                <span className="text-3xl font-black font-mono text-slate-800 dark:text-white">{records.length}</span>
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold block">مستخرجة من المرفقات</span>
+              </div>
+              <div className="p-3 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                <FileSpreadsheet className="w-6 h-6" />
+              </div>
+            </div>
+
+            {/* Stat Box 3: Integrity Percentage */}
+            <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-center justify-between group overflow-hidden relative">
+              <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-indigo-500/5 rounded-full group-hover:scale-125 transition-transform"></div>
+              <div className="space-y-1">
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold block uppercase tracking-wider">معدل سلامة واكتمال الحقول</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-black font-mono text-slate-800 dark:text-white">{integrityPercentage}%</span>
+                  <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">نسبة ممتازة</span>
+                </div>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block">تدقيق أوتوماتيكي مستمر</span>
+              </div>
+              <div className="p-3 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                <TrendingUp className="w-6 h-6" />
+              </div>
             </div>
           </div>
 
-          {/* Core System Instructions Guidelines */}
-          {showInstructions && (
-            <div className="bg-slate-900/95 text-slate-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between border border-slate-800 relative overflow-hidden backdrop-blur-md">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl"></div>
-              
-              <div className="space-y-4 relative z-10">
-                <div className="flex items-center gap-2 text-emerald-400">
-                  <HelpCircle className="w-5 h-5" />
-                  <h3 className="text-sm font-bold font-sans">تعليمات ومواصفات عمود الجدول</h3>
-                </div>
-                
-                <ul className="space-y-2 text-xs text-slate-300 leading-relaxed list-decimal list-inside">
-                  <li>يجب أن يحتوي الملف على أعمدة: <strong className="text-white">ت، الاسم، القسم، التاريخ، وقت التأخير</strong>.</li>
-                  <li>يدعم رفع <strong className="text-emerald-400">صور الجدول المطبوع/الملتقط</strong> حيث يقوم الذكاء الاصطناعي بتحليله فورياً وتعبئته.</li>
-                  <li>عند وجود وقتين في خلية البصمة (مثل <span className="font-mono text-emerald-300">"08:04 08:04"</span>)، يقوم النظام تلقائياً باستخلاص القيمة الأولى فقط لتجنب الأخطاء.</li>
-                  <li>يتم حساب <strong className="text-white">دقائق التأخير</strong> تلقائياً كفارق بالدقائق عن موعد الحضور الرسمي وهو الساعة <strong className="text-emerald-400">08:00 صباحاً</strong>.</li>
-                  <li>يبقى قالب استمارة العذر ثابتاً ومطابقاً حرفياً للاستمارة الرسمية رقم <strong className="text-white">MOE/P3-FO-03</strong> دون تغيير.</li>
-                </ul>
-              </div>
+          {/* DUAL ACTION LAYOUT: UPLOAD HUB */}
+          <div className="grid grid-cols-1 gap-6">
+            
+            {/* Redesigned Premium File Upload Canvas */}
+            <div className="lg:col-span-1">
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className="relative rounded-3xl border-2 border-dashed p-8 text-center flex flex-col items-center justify-center transition-all duration-350 min-h-[310px] group overflow-hidden border-slate-300 dark:border-slate-800 bg-white/80 dark:bg-slate-900/90 hover:border-indigo-500 dark:hover:border-indigo-500/50 hover:bg-white dark:hover:bg-slate-900 shadow-xl"
+              >
+                {/* Visual scanlines or light effects */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none opacity-50"></div>
 
-              <div className="mt-5 pt-4 border-t border-slate-800/80 flex justify-between items-center relative z-10">
-                <span className="text-[10px] text-slate-500 font-medium">الرمز: MOE/P3-FO-03 (الإصدار 4)</span>
-                <button 
-                  onClick={handleAutoCleanData}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-xs text-emerald-300 hover:text-emerald-200 hover:bg-emerald-500/20 font-bold transition-colors cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>إصلاح تلقائي للأخطاء</span>
-                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  accept=".xlsx,.xls,.docx,image/*"
+                  className="hidden"
+                />
+
+                {isLoading ? (
+                  <div className="flex flex-col items-center space-y-6 w-full max-w-md mx-auto relative z-10">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full"></div>
+                      <RefreshCw className="w-14 h-14 text-indigo-600 dark:text-indigo-400 animate-spin relative z-10" />
+                    </div>
+                    <div className="space-y-1.5 text-center">
+                      <p className="text-base font-black text-slate-800 dark:text-slate-100">جاري معالجة وتدقيق المستند المرفق بالذكاء الاصطناعي...</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">نقرأ الخلايا ونحسب فارق الدقائق آلياً من الدوام الرسمي</p>
+                    </div>
+                    
+                    {/* Futuristic loading shimmer bar */}
+                    <div className="w-full bg-slate-100 dark:bg-slate-950 rounded-full h-3 mt-2 overflow-hidden border border-slate-200/50 dark:border-slate-800 shadow-inner">
+                      <motion.div 
+                        className="bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-750 h-full rounded-full flex items-center justify-center relative overflow-hidden"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progress}%` }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                      >
+                        <div className="absolute inset-0 bg-white/20 w-full h-full animate-shimmer" style={{ backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)' }}></div>
+                      </motion.div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative z-10 flex flex-col items-center max-w-2xl w-full">
+                    <motion.div 
+                      whileHover={{ scale: 1.05 }}
+                      className="w-16 h-16 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/20 flex items-center justify-center mb-4 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                    >
+                      <Upload className="w-8 h-8" />
+                    </motion.div>
+                    
+                    <h3 className="text-lg font-black text-slate-800 dark:text-slate-100 mb-2">
+                      اسحب ملف الموقف أو صورة كشف البصمة وضعه هنا
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6 max-w-md">
+                      يدعم النظام استيراد ملفات الإكسل <strong className="text-slate-700 dark:text-slate-300">(.xlsx)</strong>، مستندات الوورد <strong className="text-slate-700 dark:text-slate-300">(.docx)</strong>، أو صور موقف المتأخرين الورقية لتقرأ آلياً بالكامل.
+                    </p>
+
+                    <div className="flex flex-wrap gap-2.5 items-center justify-center w-full max-w-xl">
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-black text-xs rounded-2xl shadow-lg shadow-indigo-500/15 cursor-pointer transition-transform hover:-translate-y-0.5 flex items-center gap-1.5"
+                      >
+                        <Upload className="w-4 h-4" />
+                        <span>رفع وتصفح كشف من جهازك</span>
+                      </button>
+
+                      <button 
+                        onClick={handleAutoCleanData}
+                        className="px-4 py-3 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 font-black text-xs rounded-2xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+                        <span>إصلاح تلقائي للأخطاء</span>
+                      </button>
+                      
+                      {records.length > 0 && (
+                        <button
+                          onClick={handleClearAll}
+                          className="px-4 py-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-black text-xs rounded-2xl cursor-pointer transition-all"
+                        >
+                          مسح كافة السجلات
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
+            </div>
+          </div>
+
+          {/* DYNAMIC MODERN TABS GLIDER */}
+          <div className="flex bg-white/80 dark:bg-slate-900/80 p-2 rounded-2xl shadow-md overflow-x-auto no-scrollbar border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-md">
+            <button
+              onClick={() => setActiveTab('preview')}
+              className={`flex-1 min-w-[200px] px-6 py-3.5 text-xs font-black transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 rounded-xl ${
+                activeTab === 'preview' 
+                  ? 'bg-slate-900 text-white dark:bg-slate-800 dark:text-indigo-400 shadow' 
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-950/50'
+              }`}
+            >
+              <FileSpreadsheet className="w-4 h-4 shrink-0" />
+              <span>جدول تدقيق ومطابقة البيانات ({records.length})</span>
+            </button>
+            
+            <button
+              onClick={() => {
+                if (records.length === 0) {
+                  showNotification('يرجى رفع ملف أو إضافة بيانات أولاً لمعاينة الاستمارات.', 'error');
+                  return;
+                }
+                setActiveTab('individual');
+              }}
+              className={`flex-1 min-w-[200px] px-6 py-3.5 text-xs font-black transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 rounded-xl ${
+                activeTab === 'individual' 
+                  ? 'bg-slate-900 text-white dark:bg-slate-800 dark:text-emerald-400 shadow' 
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-950/50'
+              }`}
+            >
+              <FileTextIcon className="w-4 h-4 shrink-0" />
+              <span>معاينة حية للاستمارة الرسمية المنفردة</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (records.length === 0) {
+                  showNotification('لا توجد بيانات لمعاينة الطباعة الجماعية.', 'error');
+                  return;
+                }
+                setActiveTab('all-forms');
+              }}
+              className={`flex-1 min-w-[200px] px-6 py-3.5 text-xs font-black transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 rounded-xl ${
+                activeTab === 'all-forms' 
+                  ? 'bg-slate-900 text-white dark:bg-slate-800 dark:text-emerald-400 shadow' 
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-950/50'
+              }`}
+            >
+              <Printer className="w-4 h-4 shrink-0" />
+              <span>معاينة طباعة الكل دفعة واحدة</span>
+            </button>
+          </div>
+
+          {/* DYNAMIC SEARCH FILTER FOR THE ACTIVE VIEW */}
+          {activeTab === 'preview' && records.length > 0 && (
+            <div className="bg-white/70 dark:bg-slate-900/70 p-4 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-indigo-500 absolute right-4 top-3" />
+                <input
+                  type="text"
+                  placeholder="ابحث بشكل حي عن موظف بالاسم ثلاثي، أو القسم، أو تاريخ التأخير بالجدول..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pr-10 pl-4 py-2.5 border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/50 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200"
+                />
+              </div>
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="text-xs text-rose-500 hover:text-rose-600 font-black cursor-pointer bg-rose-500/10 px-3 py-1.5 rounded-xl"
+                >
+                  مسح البحث
+                </button>
+              )}
             </div>
           )}
 
-        </div>
-
-        {/* TABS SELECTOR */}
-        <div className="flex bg-white/60 dark:bg-slate-900/50 p-2 rounded-full shadow-inner overflow-x-auto no-scrollbar whitespace-nowrap border border-white/60 dark:border-slate-800/50 backdrop-blur-sm">
-          <button
-            onClick={() => setActiveTab('preview')}
-            className={`flex-1 px-6 py-3.5 text-sm font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 rounded-full ${
-              activeTab === 'preview' 
-                ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700' 
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/50'
-            }`}
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>جدول معاينة البيانات وتصحيحها ({records.length})</span>
-          </button>
-          
-          <button
-            onClick={() => {
-              if (records.length === 0) {
-                showNotification('يرجى رفع ملف أو إضافة بيانات أولاً لمعاينة الاستمارات.', 'error');
-                return;
-              }
-              setActiveTab('individual');
-            }}
-            className={`flex-1 px-6 py-3.5 text-sm font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 rounded-full ${
-              activeTab === 'individual' 
-                ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700' 
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/50'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>معاينة حية للاستمارات الفردية</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (records.length === 0) {
-                showNotification('لا توجد بيانات لمعاينة الطباعة الجماعية.', 'error');
-                return;
-              }
-              setActiveTab('all-forms');
-            }}
-            className={`flex-1 px-6 py-3.5 text-sm font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 rounded-full ${
-              activeTab === 'all-forms' 
-                ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700' 
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/50'
-            }`}
-          >
-            <Printer className="w-4 h-4" />
-            <span>عرض طباعة الكل صفحة تلو الأخرى</span>
-          </button>
-        </div>
-
-        {/* SEARCH BAR (For quick queries on long lists) */}
-        {activeTab === 'preview' && records.length > 0 && (
-          <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-white/60 dark:border-slate-800 shadow-sm flex items-center gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-emerald-400 dark:text-emerald-500 absolute right-4 top-3" />
-              <input
-                type="text"
-                placeholder="ابحث عن موظف بالاسم، أو القسم، أو تاريخ التأخير..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pr-10 pl-4 py-2.5 border border-white/60 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-800 dark:text-slate-200 backdrop-blur-sm"
-              />
-            </div>
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="text-xs text-slate-400 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 font-bold cursor-pointer transition-colors"
-              >
-                إعادة تعيين
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* PRINT SETTINGS */}
-        {activeTab !== 'preview' && (
-          <div className="bg-white/60 dark:bg-slate-900/60 p-4 rounded-3xl border border-white/60 dark:border-slate-800 shadow-sm mb-6 flex flex-col gap-4 backdrop-blur-md">
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                <Settings className="w-5 h-5 text-emerald-500" />
-                <h3 className="font-bold text-sm">إعدادات الطباعة</h3>
-              </div>
-              
-              <div className="flex flex-wrap items-center gap-4 text-sm font-medium">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={printSettings.showHeader}
-                    onChange={(e) => setPrintSettings(prev => ({ ...prev, showHeader: e.target.checked }))}
-                    className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
-                  />
-                  <span className="text-slate-600 dark:text-slate-300">عرض الترويسة</span>
-                </label>
+          {/* DYNAMIC PRINT ENGINE SETTINGS & A4 GRID MINIMAP */}
+          {activeTab !== 'preview' && (
+            <div className="bg-white/80 dark:bg-slate-900/90 p-6 rounded-3xl border border-slate-200/50 dark:border-slate-800/80 shadow-xl flex flex-col gap-6 relative">
+              <div className="flex flex-col lg:flex-row gap-6 items-start justify-between">
                 
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={printSettings.showDate}
-                    onChange={(e) => setPrintSettings(prev => ({ ...prev, showDate: e.target.checked }))}
-                    className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer"
-                  />
-                  <span className="text-slate-600 dark:text-slate-300">عرض التاريخ</span>
-                </label>
+                {/* Sliders and fields */}
+                <div className="flex-1 w-full space-y-5">
+                  <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <Settings className="w-5 h-5 text-indigo-600 dark:text-indigo-400 animate-spin-slow" />
+                    <h3 className="font-extrabold text-sm">أدوات ضبط هوامش ومواقع الطباعة والتحكم بالرؤية</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Header date note presets */}
+                    <div className="space-y-3 p-4 bg-slate-50/50 dark:bg-slate-950/20 rounded-2xl border border-slate-200/30 dark:border-slate-800/30">
+                      <span className="text-[10px] font-black uppercase text-indigo-500 dark:text-indigo-400 block mb-2">خيارات العرض وحجم المعاينة</span>
+                      <div className="flex flex-wrap gap-4 text-xs font-bold">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={printSettings.showHeader}
+                            onChange={(e) => setPrintSettings(prev => ({ ...prev, showHeader: e.target.checked }))}
+                            className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                          />
+                          <span className="text-slate-700 dark:text-slate-300">عرض خلفية وترويسة الاستمارة بالطباعة</span>
+                        </label>
+                        
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={printSettings.showDate}
+                            onChange={(e) => setPrintSettings(prev => ({ ...prev, showDate: e.target.checked }))}
+                            className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                          />
+                          <span className="text-slate-700 dark:text-slate-300">عرض تاريخ تنظيم الورقة</span>
+                        </label>
 
-                <div className="relative">
-                  <input 
-                    type="text" 
-                    placeholder="ملاحظات إضافية على الاستمارة..." 
-                    value={printSettings.customNote}
-                    onChange={(e) => setPrintSettings(prev => ({ ...prev, customNote: e.target.value }))}
-                    className="w-64 px-3 py-1.5 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-lg text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                  />
+                        <label className="flex items-center gap-2 cursor-pointer bg-indigo-500/10 hover:bg-indigo-500/15 px-3 py-1.5 rounded-xl border border-indigo-500/25 text-indigo-700 dark:text-indigo-300 transition-all">
+                          <input 
+                            type="checkbox" 
+                            checked={printSettings.showAffiliation ?? false}
+                            onChange={(e) => setPrintSettings(prev => ({ ...prev, showAffiliation: e.target.checked }))}
+                            className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                          />
+                          <span>تفعيل جهة الانتساب (محطة كهرباء الخيرات الغازية)</span>
+                        </label>
+                      </div>
+
+                      {/* Preview Zoom Slider - Solves user's issue with having to zoom/scale screen */}
+                      <div className="space-y-1.5 pt-2 border-t border-slate-200/40 dark:border-slate-800/40">
+                        <div className="flex justify-between text-[10px] font-extrabold text-slate-500">
+                          <span>نسبة زووم وتكبير المعاينة بالأسفل ({Math.round(previewScale * 100)}%):</span>
+                          <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">للرؤية دون تصغير المتصفح</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-bold text-slate-400">صغير</span>
+                          <input 
+                            type="range" 
+                            min="0.4" 
+                            max="1.3" 
+                            step="0.05" 
+                            value={previewScale}
+                            onChange={(e) => setPreviewScale(parseFloat(e.target.value))}
+                            className="w-full accent-indigo-600 cursor-pointer"
+                          />
+                          <span className="text-[10px] font-bold text-slate-400">كبير جداً</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 pt-2">
+                        <span className="text-[10px] font-extrabold text-slate-400">ملاحظة إضافية تظهر أسفل الاستمارة:</span>
+                        <input 
+                          type="text" 
+                          placeholder="مثال: يرجى تقديم العذر الفعلي خلال ٣ أيام..." 
+                          value={printSettings.customNote}
+                          onChange={(e) => setPrintSettings(prev => ({ ...prev, customNote: e.target.value }))}
+                          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+
+                      {(printSettings.showAffiliation ?? false) && (
+                        <div className="space-y-1.5 pt-2">
+                          <span className="text-[10px] font-extrabold text-slate-400">نص جهة الانتساب:</span>
+                          <input 
+                            type="text" 
+                            placeholder="جهة الانتساب..." 
+                            value={printSettings.affiliationText ?? 'محطة كهرباء الخيرات الغازية'}
+                            onChange={(e) => setPrintSettings(prev => ({ ...prev, affiliationText: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-200"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Font family selection */}
+                    <div className="space-y-3 p-4 bg-slate-50/50 dark:bg-slate-950/20 rounded-2xl border border-slate-200/30 dark:border-slate-800/30">
+                      <span className="text-[10px] font-black uppercase text-indigo-500 dark:text-indigo-400 block mb-2">تخصيص الخطوط والأحجام بالاستمارة</span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-extrabold text-slate-400">نوع الخط العربي:</span>
+                          <select
+                            value={printSettings.fontFamily || 'Arial'}
+                            onChange={(e) => setPrintSettings(prev => ({ ...prev, fontFamily: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 rounded-xl text-xs font-bold focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-200"
+                          >
+                            <option value="Arial">Arial (الافتراضي)</option>
+                            <option value="Cairo">Cairo (خط هندسي)</option>
+                            <option value="Tajawal">Tajawal (خط رسمي مريح)</option>
+                            <option value="Readex Pro">Readex Pro (خط جودة حديث)</option>
+                            <option value="Almarai">Almarai (خط واضح عريض)</option>
+                            <option value="Amiri">Amiri (خط كلاسيكي نسخي)</option>
+                          </select>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-extrabold text-slate-400">حجم الخط ({printSettings.fontSize ?? 15}px):</span>
+                          <div className="flex items-center gap-2 pt-1.5">
+                            <input
+                              type="range"
+                              min="10"
+                              max="24"
+                              step="1"
+                              value={printSettings.fontSize ?? 15}
+                              onChange={(e) => setPrintSettings(prev => ({ ...prev, fontSize: parseInt(e.target.value) }))}
+                              className="w-full accent-indigo-600"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Redesigned Physical Coordinates Control Panel: Open, large, and spacious with high legibility */}
+                  <div className="space-y-4 p-5 bg-gradient-to-br from-indigo-50/40 via-white to-violet-50/40 dark:from-slate-950 dark:to-slate-900 rounded-2xl border border-indigo-200/30 dark:border-slate-800">
+                    <div className="flex items-center justify-between border-b border-slate-150 dark:border-slate-800 pb-2">
+                      <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
+                        <Compass className="w-5 h-5" />
+                        <h4 className="text-xs font-black">لوحة ضبط الإزاحة الدقيقة وتعديل المسافات للحقول (قيم مئوية لورقة A4)</h4>
+                      </div>
+                      <span className="text-[10px] bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-extrabold px-3 py-1 rounded-full border border-indigo-500/20">
+                        لوحة تحكم مكبرة
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+                      {/* Name Position */}
+                      <div className="space-y-2 p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                        <span className="text-[11px] font-black text-slate-800 dark:text-slate-200 block border-b border-slate-200/40 pb-1 flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block"></span>
+                          <span>اسم الموظف</span>
+                        </span>
+                        <div className="space-y-2.5 pt-1">
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-slate-400 font-extrabold">
+                              <span>أعلى (Y)</span>
+                              <span className="font-mono text-indigo-600 dark:text-indigo-400">{printSettings.positions?.name?.top ?? 27}%</span>
+                            </div>
+                            <input type="range" min="20" max="40" step="0.1" value={printSettings.positions?.name?.top ?? 27} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, name: { ...prev.positions?.name, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-indigo-600" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-slate-400 font-extrabold">
+                              <span>يمين (X)</span>
+                              <span className="font-mono text-indigo-600 dark:text-indigo-400">{printSettings.positions?.name?.right ?? 18}%</span>
+                            </div>
+                            <input type="range" min="10" max="50" step="0.1" value={printSettings.positions?.name?.right ?? 18} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, name: { ...prev.positions?.name, right: parseFloat(e.target.value) } } as any }))} className="w-full accent-indigo-600" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Affiliation Position */}
+                      {(printSettings.showAffiliation ?? false) && (
+                        <div className="space-y-2 p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm animate-fadeIn">
+                          <span className="text-[11px] font-black text-slate-800 dark:text-slate-200 block border-b border-slate-200/40 pb-1 flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-teal-500 inline-block"></span>
+                            <span>جهة الانتساب</span>
+                          </span>
+                          <div className="space-y-2.5 pt-1">
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-[10px] text-slate-400 font-extrabold">
+                                <span>أعلى (Y)</span>
+                                <span className="font-mono text-teal-600 dark:text-teal-400">{(printSettings.positions as any)?.affiliation?.top ?? 27.5}%</span>
+                              </div>
+                              <input type="range" min="20" max="40" step="0.1" value={(printSettings.positions as any)?.affiliation?.top ?? 27.5} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, affiliation: { ...((prev.positions as any)?.affiliation ?? { right: 18 }), top: parseFloat(e.target.value) } } as any }))} className="w-full accent-indigo-600" />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-[10px] text-slate-400 font-extrabold">
+                                <span>يمين (X)</span>
+                                <span className="font-mono text-teal-600 dark:text-teal-400">{(printSettings.positions as any)?.affiliation?.right ?? 18}%</span>
+                              </div>
+                              <input type="range" min="10" max="50" step="0.1" value={(printSettings.positions as any)?.affiliation?.right ?? 18} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, affiliation: { ...((prev.positions as any)?.affiliation ?? { top: 27.5 }), right: parseFloat(e.target.value) } } as any }))} className="w-full accent-indigo-600" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Department Position */}
+                      <div className="space-y-2 p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                        <span className="text-[11px] font-black text-slate-800 dark:text-slate-200 block border-b border-slate-200/40 pb-1 flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-violet-600 inline-block"></span>
+                          <span>اسم القسم</span>
+                        </span>
+                        <div className="space-y-2.5 pt-1">
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-slate-400 font-extrabold">
+                              <span>أعلى (Y)</span>
+                              <span className="font-mono text-violet-600 dark:text-violet-400">{printSettings.positions?.department?.top ?? 29.7}%</span>
+                            </div>
+                            <input type="range" min="20" max="40" step="0.1" value={printSettings.positions?.department?.top ?? 29.7} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, department: { ...prev.positions?.department, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-indigo-600" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-slate-400 font-extrabold">
+                              <span>يسار (X)</span>
+                              <span className="font-mono text-violet-600 dark:text-violet-400">{printSettings.positions?.department?.left ?? 15}%</span>
+                            </div>
+                            <input type="range" min="0" max="50" step="0.1" value={printSettings.positions?.department?.left ?? 15} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, department: { ...prev.positions?.department, left: parseFloat(e.target.value) } } as any }))} className="w-full accent-indigo-600" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Date Lateness Position */}
+                      <div className="space-y-2 p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                        <span className="text-[11px] font-black text-slate-800 dark:text-slate-200 block border-b border-slate-200/40 pb-1 flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
+                          <span>تاريخ التأخير</span>
+                        </span>
+                        <div className="space-y-2.5 pt-1">
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-slate-400 font-extrabold">
+                              <span>أعلى (Y)</span>
+                              <span className="font-mono text-amber-600 dark:text-amber-400">{printSettings.positions?.dateLateness?.top ?? 22.5}%</span>
+                            </div>
+                            <input type="range" min="15" max="35" step="0.1" value={printSettings.positions?.dateLateness?.top ?? 22.5} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, dateLateness: { ...prev.positions?.dateLateness, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-indigo-600" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-slate-400 font-extrabold">
+                              <span>يسار (X)</span>
+                              <span className="font-mono text-amber-600 dark:text-amber-400">{printSettings.positions?.dateLateness?.left ?? 8}%</span>
+                            </div>
+                            <input type="range" min="0" max="30" step="0.1" value={printSettings.positions?.dateLateness?.left ?? 8} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, dateLateness: { ...prev.positions?.dateLateness, left: parseFloat(e.target.value) } } as any }))} className="w-full accent-indigo-600" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Time Lateness Position */}
+                      <div className="space-y-2 p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                        <span className="text-[11px] font-black text-slate-800 dark:text-slate-200 block border-b border-slate-200/40 pb-1 flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>
+                          <span>وقت البصمة</span>
+                        </span>
+                        <div className="space-y-2.5 pt-1">
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-slate-400 font-extrabold">
+                              <span>أعلى (Y)</span>
+                              <span className="font-mono text-rose-600 dark:text-rose-400">{printSettings.positions?.timeLateness?.top ?? 24.8}%</span>
+                            </div>
+                            <input type="range" min="15" max="35" step="0.1" value={printSettings.positions?.timeLateness?.top ?? 24.8} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, timeLateness: { ...prev.positions?.timeLateness, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-indigo-600" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-slate-400 font-extrabold">
+                              <span>يسار (X)</span>
+                              <span className="font-mono text-rose-600 dark:text-rose-400">{printSettings.positions?.timeLateness?.left ?? 8}%</span>
+                            </div>
+                            <input type="range" min="0" max="30" step="0.1" value={printSettings.positions?.timeLateness?.left ?? 8} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, timeLateness: { ...prev.positions?.timeLateness, left: parseFloat(e.target.value) } } as any }))} className="w-full accent-indigo-600" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Date Created Position */}
+                      <div className="space-y-2 p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                        <span className="text-[11px] font-black text-slate-800 dark:text-slate-200 block border-b border-slate-200/40 pb-1 flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block"></span>
+                          <span>تاريخ الموقف</span>
+                        </span>
+                        <div className="space-y-2.5 pt-1">
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-slate-400 font-extrabold">
+                              <span>أعلى (Y)</span>
+                              <span className="font-mono text-sky-600 dark:text-sky-400">{printSettings.positions?.dateCreated?.top ?? 19.2}%</span>
+                            </div>
+                            <input type="range" min="10" max="30" step="0.1" value={printSettings.positions?.dateCreated?.top ?? 19.2} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, dateCreated: { ...prev.positions?.dateCreated, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-indigo-600" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-slate-400 font-extrabold">
+                              <span>يسار (X)</span>
+                              <span className="font-mono text-sky-600 dark:text-sky-400">{printSettings.positions?.dateCreated?.left ?? 8}%</span>
+                            </div>
+                            <input type="range" min="0" max="30" step="0.1" value={printSettings.positions?.dateCreated?.left ?? 8} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, dateCreated: { ...prev.positions?.dateCreated, left: parseFloat(e.target.value) } } as any }))} className="w-full accent-indigo-600" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="relative">
-                  <select
-                    value={printSettings.fontFamily || 'Arial, sans-serif'}
-                    onChange={(e) => setPrintSettings(prev => ({ ...prev, fontFamily: e.target.value }))}
-                    className="w-32 px-3 py-1.5 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-lg text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                  >
-                    <option value="Arial, sans-serif">الخط الافتراضي (Arial)</option>
-                    <option value="'Cairo', sans-serif">Cairo</option>
-                    <option value="'Tajawal', sans-serif">Tajawal</option>
-                    <option value="'Readex Pro', sans-serif">Readex Pro</option>
-                    <option value="'Almarai', sans-serif">Almarai</option>
-                    <option value="'Amiri', serif">Amiri</option>
-                  </select>
+                {/* THE MASTERPIECE: A4 PAPER BLUEPRINT INTERACTIVE VISUALIZER */}
+                <div className="w-full lg:w-56 shrink-0 bg-slate-900 text-slate-200 p-4 rounded-2xl border border-slate-800 shadow-inner flex flex-col items-center">
+                  <div className="flex items-center gap-1.5 text-indigo-400 text-[10px] font-black uppercase tracking-wider mb-2 w-full justify-center">
+                    <Compass className="w-3.5 h-3.5" />
+                    <span>مخطط تقريبي تفاعلي (A4)</span>
+                  </div>
+                  
+                  {/* Miniature Sheet Visual */}
+                  <div className="w-36 h-48 bg-slate-950 border border-slate-800 rounded-lg relative overflow-hidden shadow-2xl flex items-center justify-center">
+                    {/* Vertical guideline center */}
+                    <div className="absolute top-0 bottom-0 left-1/2 w-px border-l border-slate-800/50"></div>
+                    {/* Horizontal guideline center */}
+                    <div className="absolute left-0 right-0 top-1/2 h-px border-t border-slate-800/50"></div>
+
+                    {/* Interactive indicators */}
+                    <div 
+                      className="absolute w-2.5 h-2.5 rounded-full bg-indigo-500 shadow shadow-indigo-500/80 cursor-help"
+                      style={{ 
+                        top: `${printSettings.positions?.name?.top ?? 27}%`, 
+                        right: `${printSettings.positions?.name?.right ?? 18}%` 
+                      }}
+                      title="الاسم"
+                    ></div>
+
+                    {printSettings.showAffiliation && (
+                      <div 
+                        className="absolute w-2.5 h-2.5 rounded-full bg-teal-500 shadow shadow-teal-500/80 cursor-help"
+                        style={{ 
+                          top: `${(printSettings.positions as any)?.affiliation?.top ?? 27.5}%`, 
+                          right: `${(printSettings.positions as any)?.affiliation?.right ?? 18}%` 
+                        }}
+                        title="جهة الانتساب"
+                      ></div>
+                    )}
+
+                    <div 
+                      className="absolute w-2.5 h-2.5 rounded-full bg-violet-500 shadow shadow-violet-500/80 cursor-help"
+                      style={{ 
+                        top: `${printSettings.positions?.department?.top ?? 29.7}%`, 
+                        left: `${printSettings.positions?.department?.left ?? 15}%` 
+                      }}
+                      title="القسم"
+                    ></div>
+
+                    <div 
+                      className="absolute w-2.5 h-2.5 rounded-full bg-amber-500 shadow shadow-amber-500/80 cursor-help"
+                      style={{ 
+                        top: `${printSettings.positions?.dateLateness?.top ?? 22.5}%`, 
+                        left: `${printSettings.positions?.dateLateness?.left ?? 8}%` 
+                      }}
+                      title="تاريخ التأخير"
+                    ></div>
+
+                    <div 
+                      className="absolute w-2.5 h-2.5 rounded-full bg-rose-500 shadow shadow-rose-500/80 cursor-help"
+                      style={{ 
+                        top: `${printSettings.positions?.timeLateness?.top ?? 24.8}%`, 
+                        left: `${printSettings.positions?.timeLateness?.left ?? 8}%` 
+                      }}
+                      title="وقت البصمة"
+                    ></div>
+
+                    <div 
+                      className="absolute w-2 h-2 rounded-full bg-sky-500 shadow shadow-sky-500/80 cursor-help"
+                      style={{ 
+                        top: `${printSettings.positions?.dateCreated?.top ?? 19.2}%`, 
+                        left: `${printSettings.positions?.dateCreated?.left ?? 8}%` 
+                      }}
+                      title="تاريخ الموقف"
+                    ></div>
+
+                    <span className="text-[8px] font-bold text-slate-700 select-none uppercase tracking-widest absolute bottom-2">نموذج الاستمارة</span>
+                  </div>
+
+                  <div className="w-full mt-3 flex flex-wrap gap-2 items-center justify-center text-[8px] font-bold text-slate-400">
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block"></span> الاسم</span>
+                    {printSettings.showAffiliation && (
+                      <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-teal-500 inline-block"></span> الانتساب</span>
+                    )}
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block"></span> القسم</span>
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span> التاريخ</span>
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block"></span> الوقت</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">حجم الخط:</span>
-                  <input
-                    type="range"
-                    min="10"
-                    max="24"
-                    step="1"
-                    value={printSettings.fontSize ?? 15}
-                    onChange={(e) => setPrintSettings(prev => ({ ...prev, fontSize: parseInt(e.target.value) }))}
-                    className="w-24 accent-emerald-500"
-                  />
-                  <span className="text-xs text-slate-500 w-4">{printSettings.fontSize ?? 15}</span>
-                </div>
+
               </div>
-            </div>
 
-            {/* Advanced Position Tuning */}
-            <div className="pt-4 border-t border-slate-200/50 dark:border-slate-700/50">
-              <details className="group">
-                <summary className="text-xs font-bold text-slate-500 hover:text-emerald-600 cursor-pointer select-none mb-3">
-                  إعدادات متقدمة (تعديل مواقع النصوص على الاستمارة)
-                </summary>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-white/40 dark:bg-slate-900/40 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
-                  {/* Name Position */}
-                  <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">اسم الموظف</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-500 w-12">أعلى (Y)</span>
-                      <input type="range" min="20" max="40" step="0.1" value={printSettings.positions?.name?.top ?? 27} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, name: { ...prev.positions?.name, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-500 w-12">يمين (X)</span>
-                      <input type="range" min="10" max="50" step="0.1" value={printSettings.positions?.name?.right ?? 18} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, name: { ...prev.positions?.name, right: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
-                    </div>
-                  </div>
-
-                  {/* Department Position */}
-                  <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">القسم</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-500 w-12">أعلى (Y)</span>
-                      <input type="range" min="20" max="40" step="0.1" value={printSettings.positions?.department?.top ?? 29.7} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, department: { ...prev.positions?.department, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-500 w-12">يسار (X)</span>
-                      <input type="range" min="0" max="100" step="0.1" value={printSettings.positions?.department?.left ?? 15} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, department: { ...prev.positions?.department, left: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
-                    </div>
-                  </div>
-
-                  {/* Date Lateness Position */}
-                  <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">تاريخ التأخير</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-500 w-12">أعلى (Y)</span>
-                      <input type="range" min="15" max="35" step="0.1" value={printSettings.positions?.dateLateness?.top ?? 22.5} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, dateLateness: { ...prev.positions?.dateLateness, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-500 w-12">يسار (X)</span>
-                      <input type="range" min="0" max="30" step="0.1" value={printSettings.positions?.dateLateness?.left ?? 8} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, dateLateness: { ...prev.positions?.dateLateness, left: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
-                    </div>
-                  </div>
-
-                  {/* Time Lateness Position */}
-                  <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">وقت البصمة</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-500 w-12">أعلى (Y)</span>
-                      <input type="range" min="15" max="35" step="0.1" value={printSettings.positions?.timeLateness?.top ?? 24.8} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, timeLateness: { ...prev.positions?.timeLateness, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-500 w-12">يسار (X)</span>
-                      <input type="range" min="0" max="30" step="0.1" value={printSettings.positions?.timeLateness?.left ?? 8} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, timeLateness: { ...prev.positions?.timeLateness, left: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
-                    </div>
-                  </div>
-
-                  {/* Date Created Position */}
-                  <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">تاريخ تنظيم الاستمارة</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-500 w-12">أعلى (Y)</span>
-                      <input type="range" min="10" max="30" step="0.1" value={printSettings.positions?.dateCreated?.top ?? 19.2} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, dateCreated: { ...prev.positions?.dateCreated, top: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-500 w-12">يسار (X)</span>
-                      <input type="range" min="0" max="30" step="0.1" value={printSettings.positions?.dateCreated?.left ?? 8} onChange={(e) => setPrintSettings(prev => ({ ...prev, positions: { ...prev.positions, dateCreated: { ...prev.positions?.dateCreated, left: parseFloat(e.target.value) } } as any }))} className="w-full accent-emerald-500" />
-                    </div>
-                  </div>
-                </div>
-              </details>
-              <div className="mt-4 flex items-center justify-end">
+              {/* SAVE CONFIG BUTTON */}
+              <div className="pt-4 border-t border-slate-200/50 dark:border-slate-800 flex items-center justify-between">
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-bold">
+                  * الإزاحات هي قيم مئوية نسبية لقياس صفحة A4 القياسية.
+                </p>
                 <button
                   onClick={handleSaveSettings}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white dark:bg-slate-800 dark:text-indigo-400 hover:bg-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white text-xs font-black rounded-xl transition-all shadow-md cursor-pointer"
                 >
                   {saveSuccess ? (
                     <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      تم الحفظ
+                      <CheckCircle2 className="w-4 h-4 text-indigo-400 dark:text-white" />
+                      <span>تم حفظ التفضيلات بنجاح!</span>
                     </>
                   ) : (
                     <>
-                      <Save className="w-4 h-4" />
-                      حفظ الإعدادات
+                      <Save className="w-4 h-4 text-indigo-400" />
+                      <span>حفظ الإعدادات كافتراضية</span>
                     </>
                   )}
                 </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* RENDER ACTIVE TAB */}
-        <div className="min-h-[400px]">
-          {activeTab === 'preview' ? (
-            <PreviewTable
-              records={filteredRecords}
-              onUpdateRecord={handleUpdateRecord}
-              onDeleteRecord={handleDeleteRecord}
-              onAddRecord={handleAddRecord}
-            />
-          ) : activeTab === 'individual' ? (
-            /* Live Individual Form Preview and controls */
-            <div className="space-y-6">
-              
-              {/* Controls layout */}
-              <div className="bg-white/60 dark:bg-slate-900/60 p-4 rounded-3xl border border-white/60 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-md">
-                <div className="flex items-center gap-2.5">
-                  <button
-                    onClick={() => setCurrentFormIndex(prev => Math.max(0, prev - 1))}
-                    disabled={currentFormIndex === 0}
-                    className="p-2.5 bg-white/80 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 disabled:opacity-40 rounded-xl text-emerald-700 dark:text-slate-300 transition-colors cursor-pointer shadow-sm"
-                    title="الاستمارة السابقة"
+          {/* RENDER TAB COMPONENT CONTROLLER */}
+          <div className="min-h-[400px]">
+            {activeTab === 'preview' ? (
+              <PreviewTable
+                records={filteredRecords}
+                onUpdateRecord={handleUpdateRecord}
+                onDeleteRecord={handleDeleteRecord}
+                onAddRecord={handleAddRecord}
+              />
+            ) : activeTab === 'individual' ? (
+              /* INDIVIDUAL LIVE BROWSER PREVIEW */
+              <div className="space-y-6">
+                
+                {/* Visual form navigator and action bar */}
+                <div className="bg-white/80 dark:bg-slate-900/90 p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/80 shadow-md flex flex-col md:flex-row items-center justify-between gap-4 backdrop-blur-md">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentFormIndex(prev => Math.max(0, prev - 1))}
+                      disabled={currentFormIndex === 0}
+                      className="p-3 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-500/10 hover:text-indigo-500 disabled:opacity-40 rounded-2xl text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-sm"
+                      title="الاستمارة السابقة"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                    
+                    <span className="text-xs font-black text-slate-700 dark:text-slate-300 px-3 py-1.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/20">
+                      الاستمارة رقم <span className="font-mono text-indigo-500 font-black">{currentFormIndex + 1}</span> من أصل <span className="font-mono">{records.length}</span>
+                    </span>
+
+                    <button
+                      onClick={() => setCurrentFormIndex(prev => Math.min(records.length - 1, prev + 1))}
+                      disabled={currentFormIndex === records.length - 1}
+                      className="p-3 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-500/10 hover:text-indigo-500 disabled:opacity-40 rounded-2xl text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-sm"
+                      title="الاستمارة التالية"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Active Record Name Tag */}
+                  <div className="bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 px-4 py-2.5 rounded-2xl text-xs font-extrabold border border-indigo-500/20 shadow-sm">
+                    المنتسب الحالي: <strong className="text-slate-800 dark:text-white underline">{records[currentFormIndex]?.name || 'يرجى إدخال اسم'}</strong> 
+                    {records[currentFormIndex]?.department && ` | جهة العمل: ${records[currentFormIndex].department}`}
+                  </div>
+
+                  {/* Print triggers */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => printSingleForm(records[currentFormIndex])}
+                      className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-black rounded-2xl shadow-md cursor-pointer transition-transform hover:-translate-y-0.5"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>طباعة الاستمارة الفردية الحالية</span>
+                    </button>
+                    <button
+                      onClick={printAllForms}
+                      className="flex items-center gap-2 px-5 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-black rounded-2xl border border-slate-200/40 dark:border-slate-700 cursor-pointer transition-transform hover:-translate-y-0.5"
+                    >
+                      <FileDown className="w-4 h-4 text-indigo-500" />
+                      <span>حفظ الكل كـ PDF دفعة واحدة</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* SCALED FORM WRAPPER IN BEAUTIFUL BACKDROP GRID */}
+                <div className="w-full flex justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900/60 dark:to-slate-950/60 rounded-3xl border border-slate-200/60 dark:border-slate-800 p-4 sm:p-8 overflow-auto relative shadow-inner">
+                  {/* Background grid lines for a technical drafting desk vibe */}
+                  <div className="absolute inset-0 bg-grid-pattern opacity-10 pointer-events-none"></div>
+
+                  <div 
+                    className="responsive-form-wrapper shadow-2xl border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden bg-white relative z-10 transition-all duration-300"
+                    style={{ 
+                      transform: `scale(${previewScale})`, 
+                      transformOrigin: 'top center',
+                      width: '794px',
+                      minWidth: '794px',
+                      marginBottom: `${(previewScale - 1) * 1123}px`
+                    }}
                   >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
+                    {records[currentFormIndex] ? (
+                      <OfficialForm record={records[currentFormIndex]} printSettings={printSettings} />
+                    ) : (
+                      <div className="p-16 text-center text-slate-400 font-bold">لا توجد سجلات لعرضها حالياً.</div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            ) : (
+              /* BATCH ALL FORMS PRINT VIEW */
+              <div className="space-y-6">
+                <div className="bg-white/80 dark:bg-slate-900/90 p-5 rounded-3xl border border-slate-200/50 dark:border-slate-800/80 shadow-md flex items-center justify-between flex-wrap gap-4 backdrop-blur-md">
+                  <div>
+                    <h3 className="text-sm font-extrabold text-slate-850 dark:text-slate-100 mb-1">المعاينة الشاملة لكافة استمارات الدفعة</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">يقوم محرك المتصفح تلقائياً بفرز كل استمارة منتسب في صفحة مستقلة A4 عند تصدير الـ PDF.</p>
+                  </div>
                   
-                  <span className="text-xs font-bold text-gray-600 dark:text-gray-400">
-                    استمارة الموظف {currentFormIndex + 1} من أصل {records.length}
-                  </span>
-
-                  <button
-                    onClick={() => setCurrentFormIndex(prev => Math.min(records.length - 1, prev + 1))}
-                    disabled={currentFormIndex === records.length - 1}
-                    className="p-2.5 bg-white/80 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 disabled:opacity-40 rounded-xl text-emerald-700 dark:text-slate-300 transition-colors cursor-pointer shadow-sm"
-                    title="الاستمارة التالية"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Show short status info of current record */}
-                <div className="bg-white/60 dark:bg-slate-800/50 px-4 py-2.5 rounded-xl text-xs font-medium border border-white/60 dark:border-slate-800 text-slate-700 dark:text-slate-300 shadow-sm backdrop-blur-sm">
-                  الموظف الحالي: <strong className="text-emerald-700 dark:text-emerald-300">{records[currentFormIndex]?.name || 'فارغ'}</strong> 
-                  {records[currentFormIndex]?.department && ` | قسم: ${records[currentFormIndex].department}`}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => printSingleForm(records[currentFormIndex])}
-                    className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-emerald-400 to-teal-600 hover:from-emerald-500 hover:to-teal-600 active:from-emerald-600 active:to-teal-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer hover:-translate-y-0.5"
-                  >
-                    <Printer className="w-4 h-4" />
-                    <span>طباعة الاستمارة الحالية</span>
-                  </button>
                   <button
                     onClick={printAllForms}
-                    className="flex items-center gap-1.5 px-4 py-2.5 bg-white/80 dark:bg-slate-700 hover:bg-white dark:hover:bg-slate-600 active:bg-slate-100 dark:active:bg-slate-800 text-slate-700 dark:text-slate-200 border border-white/60 dark:border-slate-600 text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer hover:-translate-y-0.5"
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-750 hover:to-violet-750 text-white font-black text-xs rounded-2xl shadow-lg shadow-indigo-500/15 cursor-pointer transition-all hover:scale-[1.01]"
                   >
-                    <FileDown className="w-4 h-4 text-emerald-500" />
-                    <span>حفظ الكل كـ PDF (دفعة واحدة)</span>
+                    <FileDown className="w-4 h-4" />
+                    <span>تأكيد وطباعة كافة الاستمارات ({records.length})</span>
                   </button>
                 </div>
-              </div>
 
-              {/* LIVE FORM BOX WITH A SCALED CONTAINER TO FIT ON MOBILE/TABLET */}
-              <div className="w-full flex justify-center bg-slate-200/50 dark:bg-slate-800/50 rounded-2xl border border-slate-300/40 dark:border-slate-700 p-2 sm:p-4 overflow-hidden">
-                <div className="responsive-form-wrapper shadow-2xl border border-gray-300 dark:border-slate-600 rounded-lg overflow-hidden bg-white">
-                  {records[currentFormIndex] ? (
-                    <OfficialForm record={records[currentFormIndex]} printSettings={printSettings} />
-                  ) : (
-                    <div className="p-12 text-center text-gray-400">لا توجد سجلات لعرضها</div>
-                  )}
-                </div>
-              </div>
-
-            </div>
-          ) : (
-            /* ALL FORMS (BATCH PRINTING PREVIEW) */
-            <div className="space-y-6">
-              <div className="bg-white/60 dark:bg-slate-900/60 p-5 rounded-3xl border border-white/60 dark:border-slate-800 shadow-sm flex items-center justify-between flex-wrap gap-4 backdrop-blur-md">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-1">معاينة الطباعة الجماعية لجميع المنتسبين</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">يقوم المتصفح تلقائياً بفصل كل موظف في صفحة مستقلة ذات قياس A4.</p>
-                </div>
-                
-                <button
-                  onClick={printAllForms}
-                  className="flex items-center gap-1.5 px-6 py-3 bg-gradient-to-r from-emerald-400 to-teal-600 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.01] cursor-pointer"
-                >
-                  <FileDown className="w-4 h-4" />
-                  <span>تأكيد وحفظ الكل كـ PDF دفعة واحدة</span>
-                </button>
-              </div>
-
-              {/* RENDER ALL FORMS STACKED */}
-              <div className="space-y-6 sm:space-y-12 bg-slate-100 dark:bg-slate-800/30 p-2 sm:p-8 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center overflow-hidden">
-                {records.map((rec, idx) => (
-                  <div key={rec.id} className="responsive-form-wrapper shadow-xl rounded-lg border border-gray-200 dark:border-slate-600 overflow-hidden relative bg-white">
-                    <div className="absolute top-2 right-2 px-2 py-0.5 bg-slate-900 text-white text-[10px] font-bold rounded-full z-20 no-print">
-                      صفحة {idx + 1} ({rec.name || 'فارغ'})
+                {/* SCALED FORMS DESK GRID VIEW */}
+                <div className="space-y-6 sm:space-y-12 bg-slate-200/50 dark:bg-slate-950/40 p-4 sm:p-8 rounded-3xl border border-slate-200/40 dark:border-slate-800/40 flex flex-col items-center overflow-auto relative shadow-inner">
+                  {records.map((rec, idx) => (
+                    <div 
+                      key={rec.id} 
+                      className="responsive-form-wrapper shadow-2xl rounded-xl border border-slate-300 dark:border-slate-700 overflow-hidden relative bg-white transform transition-all duration-300"
+                      style={{ 
+                        transform: `scale(${previewScale})`, 
+                        transformOrigin: 'top center',
+                        width: '794px',
+                        minWidth: '794px',
+                        marginBottom: `${(previewScale - 1) * 1123}px`
+                      }}
+                    >
+                      {/* Floating Indicator Badge */}
+                      <div className="absolute top-3 right-3 px-3 py-1.5 bg-slate-900/95 text-white text-[10px] font-black rounded-xl z-20 no-print shadow border border-slate-850 flex items-center gap-1.5 select-none">
+                        <span>الاستمارة الفردية {idx + 1}</span>
+                        <span className="w-1 h-1 bg-indigo-500 rounded-full animate-ping"></span>
+                        <span className="text-slate-400">({rec.name || 'غير مكتمل'})</span>
+                      </div>
+                      <OfficialForm record={rec} printSettings={printSettings} />
                     </div>
-                    <OfficialForm record={rec} printSettings={printSettings} />
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-      </main>
+        </main>
+
+        {/* REFINED SYSTEM FOOTER */}
+        <footer className="mt-auto border-t border-slate-200/40 dark:border-slate-800/60 py-6 text-center text-slate-400 dark:text-slate-500 text-xs font-bold no-print">
+          <p>© 2026 الشركة العامة لإنتاج الطاقة الكهربائية - الفرات الأوسط | قسم تدقيق ومطابقة الدوام الرسمي</p>
+          <p className="mt-1 text-[10px] text-slate-400/80">مطور بأحدث التقنيات السحابية المتوافقة مع معايير الجودة الشاملة</p>
+        </footer>
+
+      </div>
 
       {/* DETACHED PRINT-ONLY ZONE (HIDES COMPLETELY IN WEB PORTAL, VISIBLE DURING PRINT) */}
       <div id="print-root">
@@ -1179,7 +1715,26 @@ export default function App() {
           </div>
         ))}
       </div>
-
     </div>
+  );
+}
+
+// Simple custom component to prevent importing extra dependencies or custom icon loaders
+function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2.5" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+    >
+      <path d="m6 9 6 6 6-6"/>
+    </svg>
   );
 }

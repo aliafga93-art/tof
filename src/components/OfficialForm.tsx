@@ -5,11 +5,14 @@ import { LatenessRecord } from '../types';
 interface PrintSettings {
   showHeader: boolean;
   showDate: boolean;
+  showAffiliation?: boolean;
+  affiliationText?: string;
   customNote: string;
   fontFamily?: string;
   fontSize?: number;
   positions?: {
     name: { top: number, right: number };
+    affiliation?: { top: number, right: number };
     department: { top: number, left: number };
     dateCreated: { top: number, left: number };
     dateLateness: { top: number, left: number };
@@ -21,6 +24,17 @@ interface OfficialFormProps {
   record: LatenessRecord;
   printSettings: PrintSettings;
 }
+
+const getFontFamily = (font?: string) => {
+  if (!font) return 'Arial, sans-serif';
+  if (font.includes('Cairo')) return '"Cairo", sans-serif';
+  if (font.includes('Tajawal')) return '"Tajawal", sans-serif';
+  if (font.includes('Readex')) return '"Readex Pro", sans-serif';
+  if (font.includes('Almarai')) return '"Almarai", sans-serif';
+  if (font.includes('Amiri')) return '"Amiri", serif';
+  if (font.includes('Arial')) return 'Arial, sans-serif';
+  return font;
+};
 
 export default function OfficialForm({ record, printSettings }: OfficialFormProps) {
   return (
@@ -53,7 +67,7 @@ export default function OfficialForm({ record, printSettings }: OfficialFormProp
       )}
 
       {/* حاوية النصوص المتغيرة (البيانات) */}
-      <div className="absolute inset-0 z-10 font-bold text-black" style={{ fontSize: `${printSettings?.fontSize ?? 15}px`, fontFamily: printSettings?.fontFamily || 'Arial, sans-serif' }}>
+      <div className="absolute inset-0 z-10 font-bold text-black" style={{ fontSize: `${printSettings?.fontSize ?? 15}px`, fontFamily: getFontFamily(printSettings?.fontFamily) }}>
         
         {/* الملاحظة الإضافية (إن وجدت) */}
         {printSettings?.customNote && (
@@ -67,8 +81,15 @@ export default function OfficialForm({ record, printSettings }: OfficialFormProp
           {record.name}
         </div>
 
+        {/* جهة الانتساب - تحت اسم الموظف */}
+        {printSettings?.showAffiliation && (
+          <div className="absolute font-bold text-black" style={{ top: `${printSettings?.positions?.affiliation?.top ?? 27.5}%`, right: `${printSettings?.positions?.affiliation?.right ?? 18}%`, width: '40%', textAlign: 'right' }}>
+            {printSettings.affiliationText ?? 'محطة كهرباء الخيرات الغازية'}
+          </div>
+        )}
+
         {/* القسم - من بداية السطر */}
-        <div className="absolute" style={{ top: `${printSettings?.positions?.department?.top ?? 27.5}%`, left: `${printSettings?.positions?.department?.left ?? 15}%`, width: '30%', textAlign: 'right' }}>
+        <div className="absolute" style={{ top: `${printSettings?.positions?.department?.top ?? 29.5}%`, left: `${printSettings?.positions?.department?.left ?? 15}%`, width: '30%', textAlign: 'right' }}>
           {record.department}
         </div>
 
