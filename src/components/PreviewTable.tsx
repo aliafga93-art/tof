@@ -305,14 +305,14 @@ export default function PreviewTable({
         <div className="hidden md:block overflow-x-auto w-full">
           <table className="w-full text-right border-collapse">
             <thead>
-              <tr className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white border-b-2 border-indigo-500 text-xs font-black select-none shadow-md">
-                <th className="p-3 w-[50px] text-center font-black rounded-tr-3xl">ت</th>
+              <tr className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white border-b-2 border-indigo-500 text-xs font-bold font-serif select-none shadow-md">
+                <th className="p-3 w-[50px] text-center rounded-tr-3xl">ت</th>
                 <th className="p-3">
                   <div className="flex items-center gap-2 justify-start">
                     <div className="p-1 bg-white/10 rounded-xl">
                       <User className="w-3.5 h-3.5 text-indigo-300" />
                     </div>
-                    <span className="font-black text-slate-100">الاسم الكامل</span>
+                    <span className="text-slate-100">الاسم الكامل</span>
                   </div>
                 </th>
                 <th className="p-3">
@@ -320,7 +320,7 @@ export default function PreviewTable({
                     <div className="p-1 bg-white/10 rounded-xl">
                       <Building2 className="w-3.5 h-3.5 text-indigo-300" />
                     </div>
-                    <span className="font-black text-slate-100">القسم / الشعبة</span>
+                    <span className="text-slate-100">القسم / الشعبة</span>
                   </div>
                 </th>
                 <th className="p-3 w-[120px]">
@@ -328,7 +328,7 @@ export default function PreviewTable({
                     <div className="p-1 bg-white/10 rounded-xl">
                       <Calendar className="w-3.5 h-3.5 text-indigo-300" />
                     </div>
-                    <span className="font-black text-slate-100">التاريخ</span>
+                    <span className="text-slate-100">التاريخ</span>
                   </div>
                 </th>
                 <th className="p-3 w-[120px]">
@@ -336,7 +336,7 @@ export default function PreviewTable({
                     <div className="p-1 bg-white/10 rounded-xl">
                       <Clock className="w-3.5 h-3.5 text-indigo-300" />
                     </div>
-                    <span className="font-black text-slate-100">وقت البصمة</span>
+                    <span className="text-slate-100">وقت البصمة</span>
                   </div>
                 </th>
                 <th className="p-3 w-[120px] text-center">
@@ -344,7 +344,7 @@ export default function PreviewTable({
                     <div className="p-1 bg-amber-500/20 rounded-xl">
                       <Timer className="w-3.5 h-3.5 text-amber-400" />
                     </div>
-                    <span className="font-black text-amber-300">دقائق التأخير</span>
+                    <span className="text-amber-300">دقائق التأخير</span>
                   </div>
                 </th>
                 <th className="p-3 w-[150px]">
@@ -352,7 +352,7 @@ export default function PreviewTable({
                     <div className="p-1 bg-white/10 rounded-xl">
                       <CheckCircle2 className="w-3.5 h-3.5 text-indigo-300" />
                     </div>
-                    <span className="font-black text-slate-100">حالة التدقيق</span>
+                    <span className="text-slate-100">حالة التدقيق</span>
                   </div>
                 </th>
                 <th className="p-3 w-[60px] text-center rounded-tl-3xl">الإجراءات</th>
@@ -398,8 +398,8 @@ export default function PreviewTable({
                       }`}
                     >
                       {/* Index */}
-                      <td className="p-2.5 text-center font-mono text-[11px] text-slate-500 dark:text-slate-400 font-black">
-                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-black border border-indigo-200/40 dark:border-indigo-900/40 shadow-sm text-[11px]">
+                      <td className="p-2.5 text-center font-mono text-[11px] text-slate-500 dark:text-slate-400 font-bold font-serif">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200/40 dark:border-indigo-900/40 shadow-sm text-[11px]">
                           {index + 1}
                         </span>
                       </td>
@@ -411,10 +411,10 @@ export default function PreviewTable({
                             type="text"
                             value={record.name}
                             onChange={(e) => handleFieldChange(record.id, 'name', e.target.value)}
-                            className={`w-full px-3 py-2 rounded-xl border text-xs font-extrabold tracking-tight transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:bg-white dark:focus:bg-slate-950 ${
+                            className={`w-full px-3 py-2 rounded-xl border text-xs font-bold font-serif tracking-tight transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:bg-white dark:focus:bg-slate-950 ${
                               !record.name.trim() 
-                                ? 'border-rose-450 dark:border-rose-900 text-rose-900 dark:text-rose-100 bg-rose-50/40 font-black' 
-                                : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-50 focus:border-indigo-600 font-extrabold'
+                                ? 'border-rose-450 dark:border-rose-900 text-rose-900 dark:text-rose-100 bg-rose-50/40 font-bold' 
+                                : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-50 focus:border-indigo-600 font-bold'
                             }`}
                             placeholder="مثال: وسام ناظم..."
                           />
@@ -427,7 +427,7 @@ export default function PreviewTable({
                           type="text"
                           value={record.department}
                           onChange={(e) => handleFieldChange(record.id, 'department', e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-xs font-extrabold transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-950 text-slate-800 dark:text-slate-100"
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-xs font-bold font-serif transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-950 text-slate-800 dark:text-slate-100"
                           placeholder="القسم/الشعبة..."
                         />
                       </td>
@@ -438,7 +438,7 @@ export default function PreviewTable({
                           type="text"
                           value={record.dateString}
                           onChange={(e) => handleFieldChange(record.id, 'dateString', e.target.value)}
-                          className={`w-full px-3 py-2 rounded-xl border text-xs font-black font-mono text-center transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-950 ${
+                          className={`w-full px-3 py-2 rounded-xl border text-xs font-bold font-serif text-center transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-950 ${
                             !record.dateString.trim() 
                               ? 'border-rose-450 dark:border-rose-900 bg-rose-50/40 text-rose-900' 
                               : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900/60'
@@ -453,7 +453,7 @@ export default function PreviewTable({
                           type="text"
                           value={record.timeString}
                           onChange={(e) => handleFieldChange(record.id, 'timeString', e.target.value)}
-                          className={`w-full px-3 py-2 rounded-xl border text-xs font-black font-mono text-center transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-950 ${
+                          className={`w-full px-3 py-2 rounded-xl border text-xs font-bold font-serif text-center transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-950 ${
                             record.hasError && record.errorMsg?.includes('الوقت')
                               ? 'border-rose-450 dark:border-rose-900 bg-rose-50/40 text-rose-900' 
                               : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900/60'
@@ -464,9 +464,9 @@ export default function PreviewTable({
 
                       {/* Lateness calculation badge */}
                       <td className="p-2.5 text-center">
-                        <span className={`inline-flex items-center gap-1.5 justify-center px-3 py-1.5 rounded-xl text-[11px] font-black font-mono border transition-all duration-300 ${
+                        <span className={`inline-flex items-center gap-1.5 justify-center px-3 py-1.5 rounded-xl text-[11px] font-bold font-serif border transition-all duration-300 ${
                           record.minutesOfLateness > 0 
-                            ? 'bg-amber-550/10 text-amber-700 dark:text-amber-400 border-amber-500/20 shadow-sm font-black' 
+                            ? 'bg-amber-550/10 text-amber-700 dark:text-amber-400 border-amber-500/20 shadow-sm font-bold' 
                             : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200/10'
                         }`}>
                           <Timer className="w-3.5 h-3.5 text-amber-550 shrink-0 animate-spin-slow" />
@@ -478,12 +478,12 @@ export default function PreviewTable({
                       <td className="p-2.5">
                         <div className="flex justify-center">
                           {record.hasError ? (
-                            <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-405 text-[11px] font-black bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/25 shadow-sm max-w-[140px] truncate animate-pulse">
+                            <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-405 text-[11px] font-bold font-serif bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/25 shadow-sm max-w-[140px] truncate animate-pulse">
                               <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-600 dark:text-rose-400" />
                               <span className="truncate">{record.errorMsg}</span>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-400 text-[11px] font-black bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 shadow-sm">
+                            <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-400 text-[11px] font-bold font-serif bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 shadow-sm">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
                               <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                               <span>سليم ومكتمل</span>

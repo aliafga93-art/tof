@@ -1,0 +1,11 @@
+                </div>
+                {/* PRINT SETTINGS PANEL */}
+                <div className="w-full lg:w-[480px] shrink-0">
+                  <PrintSettingsPanel 
+                    printSettings={printSettings} 
+                    setPrintSettings={setPrintSettings} 
+                    handleSaveSettings={handleSaveSettings} 
+                    saveSuccess={saveSuccess} 
+                  />
+                </div>
+              </div>

@@ -1,24 +1,5 @@
 import React from 'react';
-
-import { LatenessRecord } from '../types';
-
-interface PrintSettings {
-  showHeader: boolean;
-  showDate: boolean;
-  showAffiliation?: boolean;
-  affiliationText?: string;
-  customNote: string;
-  fontFamily?: string;
-  fontSize?: number;
-  positions?: {
-    name: { top: number, right: number };
-    affiliation?: { top: number, right: number };
-    department: { top: number, left: number };
-    dateCreated: { top: number, left: number };
-    dateLateness: { top: number, left: number };
-    timeLateness: { top: number, left: number };
-  };
-}
+import { LatenessRecord, PrintSettings } from '../types';
 
 interface OfficialFormProps {
   record: LatenessRecord;
@@ -26,7 +7,7 @@ interface OfficialFormProps {
 }
 
 const getFontFamily = (font?: string) => {
-  if (!font) return 'Arial, sans-serif';
+  if (!font) return '"Amiri", serif';
   if (font.includes('Cairo')) return '"Cairo", sans-serif';
   if (font.includes('Tajawal')) return '"Tajawal", sans-serif';
   if (font.includes('Readex')) return '"Readex Pro", sans-serif';
@@ -51,8 +32,8 @@ export default function OfficialForm({ record, printSettings }: OfficialFormProp
       }}
     >
       {/* 
-        صورة الخلفية: يرجى رفع صورة الاستمارة الأصلية إلى مجلد public 
-        وتسميتها "form-bg.jpg" أو تعديل المسار أدناه ليطابق اسم الصورة المرفوعة 
+        صورة الخلفية: يرجى رفع صورة الاستمارة الأصلية إلى مجلد public
+        وتسميتها "form-bg.jpg" أو تعديل المسار أدناه ليطابق اسم الصورة المرفوعة
       */}
       <img 
         src="/form-bg.jpg" 
@@ -113,9 +94,7 @@ export default function OfficialForm({ record, printSettings }: OfficialFormProp
             {record.timeString}
           </span>
         </div>
-
       </div>
     </div>
   );
 }
-
