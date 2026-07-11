@@ -577,16 +577,31 @@ export default function App() {
       // Temporarily remove transform to get a clean capture
       element.style.transform = 'none';
       
+      // Reset parent's transform too to ensure html2canvas calculates correct boundingClientRect
+      const parent = element.parentElement;
+      const originalParentTransform = parent ? parent.style.transform : '';
+      if (parent) {
+        parent.style.transform = 'none';
+      }
+      
       const canvas = await html2canvas(element, {
-        scale: 2,
+        scale: 2.5, // Higher quality for official documents
         useCORS: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 794,
+        windowHeight: 1123
       });
       
-      // Revert style
+      // Revert styles
       element.style.transform = originalTransform;
+      if (parent) {
+        parent.style.transform = originalParentTransform;
+      }
       
-      const dataUrl = canvas.toDataURL(format === 'png' ? 'image/png' : 'image/jpeg', 0.9);
+      const dataUrl = canvas.toDataURL(format === 'png' ? 'image/png' : 'image/jpeg', 0.95);
       const link = document.createElement('a');
       const safeName = (record.name || 'استمارة').replace(/[\s\/]/g, '_');
       link.download = `استمارة_${safeName}.${format}`;

@@ -65,9 +65,19 @@
     padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
+    width: 210mm !important;
     height: 297mm !important;
     box-sizing: border-box !important;
   }
+}
+
+.official-form-page {
+  width: 794px;
+  height: 1123px;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  background-color: #ffffff;
 }
 
 #print-root {

@@ -23,8 +23,6 @@ export default function OfficialForm({ record, printSettings }: OfficialFormProp
       id={`form-${record.id}`}
       className="official-form-page relative mx-auto bg-white text-black rtl text-right select-none"
       style={{
-        width: '210mm',
-        height: '297mm', // Fixed height for A4
         boxSizing: 'border-box',
         pageBreakAfter: 'always',
         overflow: 'hidden',
@@ -39,7 +37,7 @@ export default function OfficialForm({ record, printSettings }: OfficialFormProp
         src="/form-bg.jpg" 
         alt="Form Background"
         className="absolute inset-0 w-full h-full object-fill z-0 print:object-fill"
-        style={{ width: '210mm', height: '297mm' }}
+        style={{ width: '100%', height: '100%' }}
       />
 
       {/* White overlay to hide the official header (if requested) */}
