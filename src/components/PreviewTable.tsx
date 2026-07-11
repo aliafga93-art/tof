@@ -15,7 +15,7 @@ import {
   UserPlus,
   HelpCircle,
   Search,
-  Check
+  Check, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { calculateLatenessMinutes, parseTimeString } from '../utils/parser';
@@ -35,6 +35,11 @@ export default function PreviewTable({
 }: PreviewTableProps) {
   const [activeSearchLocal, setActiveSearchLocal] = useState('');
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  
+  const toggleRow = (id: string) => {
+    setExpandedRowId(prev => prev === id ? null : id);
+  };
   
   const handleFieldChange = (id: string, field: keyof LatenessRecord, val: any) => {
     const updated: Partial<LatenessRecord> = { [field]: val };
@@ -149,8 +154,8 @@ export default function PreviewTable({
           </div>
         </div>
 
-        {/* Responsive Mobile Layout (Grid of Beautiful Bento Cards) */}
-        <div className="md:hidden p-4 space-y-4 bg-slate-50/50 dark:bg-slate-950/20">
+        {/* Responsive Mobile Layout (Accordion Style) */}
+        <div className="md:hidden p-4 space-y-3 bg-slate-50/50 dark:bg-slate-950/20">
           <AnimatePresence mode="popLayout">
             {filteredLocal.length === 0 ? (
               <motion.div 
@@ -161,146 +166,166 @@ export default function PreviewTable({
                 لا توجد نتائج مطابقة لبحثك في هذا الجدول.
               </motion.div>
             ) : (
-              filteredLocal.map((record, index) => (
+              filteredLocal.map((record, index) => {
+                const isExpanded = expandedRowId === record.id;
+                return (
                 <motion.div 
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   key={record.id} 
-                  className={`p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden bg-white dark:bg-slate-900 shadow-md ${
+                  className={`rounded-2xl border transition-all duration-300 relative overflow-hidden bg-white dark:bg-slate-900 shadow-sm ${
                     record.hasError 
-                      ? 'border-rose-300 dark:border-rose-950 ring-2 ring-rose-500/10' 
-                      : 'border-slate-200 dark:border-slate-800/80 hover:border-indigo-500/40'
+                      ? 'border-rose-300 dark:border-rose-950 ring-1 ring-rose-500/10' 
+                      : 'border-slate-200 dark:border-slate-800 hover:border-indigo-500/40'
                   }`}
                 >
                   {/* Glowing warning element for cards with error */}
                   {record.hasError && (
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-rose-600 animate-pulse"></div>
                   )}
-
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800/60 mb-4">
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center justify-center w-7 h-7 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20 text-xs font-black text-indigo-750 dark:text-indigo-400 font-mono">
+                  
+                  {/* Accordion Header */}
+                  <div 
+                    onClick={() => toggleRow(record.id)}
+                    className="p-4 flex items-center justify-between cursor-pointer select-none group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20 text-xs font-black text-indigo-750 dark:text-indigo-400 font-mono shrink-0">
                         {index + 1}
                       </span>
-                      {record.hasError ? (
-                        <span className="inline-flex items-center gap-1.5 text-rose-700 dark:text-rose-400 text-xs font-black bg-rose-500/10 px-3 py-1 rounded-xl border border-rose-500/20">
-                          <AlertTriangle className="w-3.5 h-3.5 animate-bounce" />
-                          <span>{record.errorMsg}</span>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-slate-800 dark:text-slate-100 line-clamp-1">
+                          {record.name || 'موظف بدون اسم'}
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 text-indigo-700 dark:text-indigo-400 text-xs font-black bg-indigo-500/10 px-3 py-1 rounded-xl border border-indigo-500/20">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>سليم ومكتمل</span>
-                        </span>
-                      )}
+                        <div className="flex items-center gap-2 mt-1">
+                          {record.hasError ? (
+                            <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 text-[10px] font-bold">
+                              <AlertTriangle className="w-3 h-3" />
+                              <span>{record.errorMsg}</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>مكتمل</span>
+                            </span>
+                          )}
+                          {record.minutesOfLateness > 0 && (
+                            <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-500 text-[10px] font-bold">
+                              <Timer className="w-3 h-3" />
+                              <span>{record.minutesOfLateness} د</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     
-                    <button
-                      onClick={() => onDeleteRecord(record.id)}
-                      className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-450 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all cursor-pointer hover:scale-110 active:scale-95"
-                      title="حذف السجل"
-                    >
-                      <Trash2 className="w-4.5 h-4.5" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    {/* Name */}
-                    <div className="space-y-1.5">
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400 font-black flex items-center gap-1">
-                        <User className="w-3.5 h-3.5 text-indigo-500" />
-                        الاسم الكامل للموظف
-                      </span>
-                      <input
-                        type="text"
-                        value={record.name}
-                        onChange={(e) => handleFieldChange(record.id, 'name', e.target.value)}
-                        className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 bg-slate-50 dark:bg-slate-950/50 ${
-                          !record.name.trim() 
-                            ? 'border-rose-400 dark:border-rose-850 text-rose-950 dark:text-rose-100 bg-rose-50/50' 
-                            : 'border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-50 focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-950'
-                        }`}
-                        placeholder="أدخل اسم الموظف ثلاثي..."
-                      />
-                    </div>
-
-                    {/* Department */}
-                    <div className="space-y-1.5">
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400 font-black flex items-center gap-1">
-                        <Building2 className="w-3.5 h-3.5 text-indigo-500" />
-                        القسم / الشعبة
-                      </span>
-                      <input
-                        type="text"
-                        value={record.department}
-                        onChange={(e) => handleFieldChange(record.id, 'department', e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-950 text-slate-900 dark:text-slate-100"
-                        placeholder="أدخل اسم القسم..."
-                      />
-                    </div>
-
-                    {/* Date & Time fields */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-black flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                          التاريخ
-                        </span>
-                        <input
-                          type="text"
-                          value={record.dateString}
-                          onChange={(e) => handleFieldChange(record.id, 'dateString', e.target.value)}
-                          className={`w-full px-3 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-950/50 text-xs font-black font-mono text-center transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 ${
-                            !record.dateString.trim() 
-                              ? 'border-rose-400 dark:border-rose-850 text-rose-950 dark:text-rose-100 bg-rose-50/50' 
-                              : 'border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-50 focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-950'
-                          }`}
-                          placeholder="DD/MM/YYYY"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-black flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                          وقت البصمة
-                        </span>
-                        <input
-                          type="text"
-                          value={record.timeString}
-                          onChange={(e) => handleFieldChange(record.id, 'timeString', e.target.value)}
-                          className={`w-full px-3 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-950/50 text-xs font-black font-mono text-center transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 ${
-                            record.hasError && record.errorMsg?.includes('الوقت')
-                              ? 'border-rose-400 dark:border-rose-850 text-rose-950 dark:text-rose-100 bg-rose-50/50' 
-                              : 'border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-50 focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-950'
-                          }`}
-                          placeholder="08:05"
-                        />
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDeleteRecord(record.id); }}
+                        className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-450 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all active:scale-95"
+                        title="حذف السجل"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <div className={`p-1.5 rounded-lg text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180 bg-slate-100 dark:bg-slate-800' : 'group-hover:bg-slate-100 dark:group-hover:bg-slate-800'}`}>
+                        <ChevronDown className="w-4 h-4" />
                       </div>
                     </div>
-
-                    {/* Lateness amount info card */}
-                    <div className="p-3 bg-slate-100/70 dark:bg-slate-950/70 rounded-xl flex items-center justify-between border border-slate-200/30 dark:border-slate-800/30 text-xs">
-                      <span className="text-slate-500 dark:text-slate-400 font-black flex items-center gap-1.5">
-                        <Timer className="w-4 h-4 text-amber-500 animate-spin-slow" />
-                        مدة التأخير:
-                      </span>
-                      <span className={`font-mono font-black px-3 py-1 rounded-lg text-xs ${
-                        record.minutesOfLateness > 0 
-                          ? 'bg-amber-500/15 text-amber-700 dark:text-amber-450 font-black border border-amber-500/20 shadow-sm' 
-                          : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                      }`}>
-                        {record.minutesOfLateness} دقيقة
-                      </span>
-                    </div>
-
                   </div>
+
+                  {/* Accordion Content */}
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="border-t border-slate-100 dark:border-slate-800/60"
+                      >
+                        <div className="p-4 space-y-4">
+                          {/* Name */}
+                          <div className="space-y-1.5">
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-black flex items-center gap-1">
+                              <User className="w-3.5 h-3.5 text-indigo-500" />
+                              الاسم الكامل للموظف
+                            </span>
+                            <input
+                              type="text"
+                              value={record.name}
+                              onChange={(e) => handleFieldChange(record.id, 'name', e.target.value)}
+                              className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 bg-slate-50 dark:bg-slate-950/50 ${
+                                !record.name.trim() 
+                                  ? 'border-rose-400 dark:border-rose-850 text-rose-950 dark:text-rose-100 bg-rose-50/50' 
+                                  : 'border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-50 focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-950'
+                              }`}
+                              placeholder="أدخل اسم الموظف ثلاثي..."
+                            />
+                          </div>
+
+                          {/* Department */}
+                          <div className="space-y-1.5">
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-black flex items-center gap-1">
+                              <Building2 className="w-3.5 h-3.5 text-indigo-500" />
+                              القسم / الشعبة
+                            </span>
+                            <input
+                              type="text"
+                              value={record.department}
+                              onChange={(e) => handleFieldChange(record.id, 'department', e.target.value)}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-950 text-slate-900 dark:text-slate-100"
+                              placeholder="أدخل اسم القسم..."
+                            />
+                          </div>
+
+                          {/* Date & Time fields */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-black flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                                التاريخ
+                              </span>
+                              <input
+                                type="text"
+                                value={record.dateString}
+                                onChange={(e) => handleFieldChange(record.id, 'dateString', e.target.value)}
+                                className={`w-full px-3 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-950/50 text-xs font-black font-mono text-center transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 ${
+                                  !record.dateString.trim() 
+                                    ? 'border-rose-400 dark:border-rose-850 text-rose-950 dark:text-rose-100 bg-rose-50/50' 
+                                    : 'border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-50 focus:border-indigo-600 focus:bg-white dark:focus:bg-slate-950'
+                                }`}
+                                placeholder="DD/MM/YYYY"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-black flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                                وقت البصمة
+                              </span>
+                              <input
+                                type="text"
+                                value={record.timeString}
+                                onChange={(e) => handleFieldChange(record.id, 'timeString', e.target.value)}
+                                className={`w-full px-3 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-950/50 text-xs font-black font-mono text-center transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/15 ${
+                                  record.hasError && record.errorMsg?.includes('الوقت')
+                                    ? 'border-rose-400 dark:border-rose-850 text-rose-950 dark:text-rose-100 bg-rose-50/50' 
+                                    : 'border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-50 focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-950'
+                                }`}
+                                placeholder="08:05"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
-              ))
+                );
+              })
             )}
           </AnimatePresence>
         </div>
-
         {/* Desktop Exquisite Premium Table View */}
         <div className="hidden md:block overflow-x-auto w-full">
           <table className="w-full text-right border-collapse">
