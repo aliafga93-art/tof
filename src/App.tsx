@@ -571,44 +571,72 @@ export default function App() {
     }
 
     try {
-      showNotification(`جاري تحضير الصورة بصيغة ${format.toUpperCase()}...`, 'info');
-      // Store original styles to revert later
-      const originalTransform = element.style.transform;
-      // Temporarily remove transform to get a clean capture
-      element.style.transform = 'none';
+      showNotification(`جاري تحضير الصورة بصيغة ${format.toUpperCase()} بدقة عالية ومطابقة تامة...`, 'info');
       
-      // Reset parent's transform too to ensure html2canvas calculates correct boundingClientRect
-      const parent = element.parentElement;
-      const originalParentTransform = parent ? parent.style.transform : '';
-      if (parent) {
-        parent.style.transform = 'none';
+      // Save current scroll position
+      const originalScrollX = window.scrollX;
+      const originalScrollY = window.scrollY;
+      
+      // Scroll to top-left to avoid html2canvas offset bugs
+      window.scrollTo(0, 0);
+
+      // Clone the element to avoid any transform, zoom, scroll or scaling issues
+      const clone = element.cloneNode(true) as HTMLElement;
+      clone.id = `form-clone-${record.id}`;
+      
+      // Force exact dimensions, absolute layout at 0,0 and remove any transforms or scaling
+      clone.style.position = 'absolute';
+      clone.style.left = '0';
+      clone.style.top = '0';
+      clone.style.width = '794px';
+      clone.style.height = '1123px';
+      clone.style.transform = 'none';
+      clone.style.zoom = '1';
+      clone.style.margin = '0';
+      clone.style.padding = '0';
+      clone.style.boxSizing = 'border-box';
+      clone.style.zIndex = '-9999';
+      
+      // Ensure all images are printed and fully opacity is visible
+      const imgs = clone.getElementsByTagName('img');
+      for (let i = 0; i < imgs.length; i++) {
+        imgs[i].style.width = '100%';
+        imgs[i].style.height = '100%';
       }
       
-      const canvas = await html2canvas(element, {
+      // Append clone to body
+      document.body.appendChild(clone);
+      
+      // Wait briefly for rendering and font layout to settle
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      const canvas = await html2canvas(clone, {
         scale: 2.5, // Higher quality for official documents
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
+        width: 794,
+        height: 1123,
         scrollX: 0,
         scrollY: 0,
         windowWidth: 794,
         windowHeight: 1123
       });
       
-      // Revert styles
-      element.style.transform = originalTransform;
-      if (parent) {
-        parent.style.transform = originalParentTransform;
-      }
+      // Remove the clone from body
+      document.body.removeChild(clone);
       
-      const dataUrl = canvas.toDataURL(format === 'png' ? 'image/png' : 'image/jpeg', 0.95);
+      // Restore scroll position
+      window.scrollTo(originalScrollX, originalScrollY);
+      
+      const dataUrl = canvas.toDataURL(format === 'png' ? 'image/png' : 'image/jpeg', 0.98);
       const link = document.createElement('a');
       const safeName = (record.name || 'استمارة').replace(/[\s\/]/g, '_');
       link.download = `استمارة_${safeName}.${format}`;
       link.href = dataUrl;
       link.click();
       
-      showNotification('تم تحميل الاستمارة بنجاح كصورة', 'success');
+      showNotification('تم تحميل الاستمارة بنجاح كصورة متطابقة تماماً', 'success');
     } catch (err) {
       console.error('Error downloading image', err);
       showNotification('حدث خطأ أثناء حفظ الصورة', 'error');
