@@ -37,7 +37,13 @@ import {
   Minimize2,
   Type,
   Eye,
-  ImageDown
+  ImageDown,
+  Zap,
+  ShieldCheck,
+  Activity,
+  Building,
+  Layers,
+  Cpu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LatenessRecord } from './types';
@@ -763,69 +769,86 @@ export default function App() {
         style={{ zoom: uiScale === 'large' ? 1.08 : uiScale === 'xlarge' ? 1.18 : 1 }}
       >
       
-        {/* PREMIUM NAVIGATION BAR */}
-        <header className="bg-white/70 dark:bg-slate-900/70 border-b border-slate-200/50 dark:border-slate-800/50 sticky top-0 z-50 backdrop-blur-xl animate-fadeIn">
-          <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 transition-all duration-300">
+        {/* iOS SYSTEM TOP STATUS BAR */}
+        <div className="bg-slate-900 text-slate-200 text-[11px] font-bold py-1.5 px-4 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2 z-50">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 text-sky-400 font-extrabold">
+              <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span>الشركة العامة لإنتاج الطاقة الكهربائية / الفرات الأوسط</span>
+            </span>
+            <span className="hidden sm:inline text-slate-500">•</span>
+            <span className="hidden sm:inline text-slate-300 font-semibold">محطة كهرباء الخيرات الغازية — قسم الجودة والتطوير المؤسسي</span>
+          </div>
+
+          <div className="flex items-center gap-4 text-[10px]">
+            <div className="flex items-center gap-1.5 text-slate-300 font-mono">
+              <Clock className="w-3 h-3 text-sky-400" />
+              <span>توقيت بغداد:</span>
+              <BaghdadClock />
+            </div>
+          </div>
+        </div>
+
+        {/* iOS FROSTED GLASS NAVIGATION BAR */}
+        <header className="bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/60 dark:border-slate-800/60 sticky top-0 z-40 backdrop-blur-2xl transition-all shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+          <div className="max-w-7xl mx-auto px-4 py-3.5 sm:px-6 lg:px-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             
-            {/* Logo and branding */}
-            <div className="flex items-center gap-4">
+            {/* iOS App Branding Squircle */}
+            <div className="flex items-center gap-3.5">
               <motion.div 
-                animate={{ rotate: [0, 360] }}
-                transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
-                className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white transform hover:scale-105 transition-transform"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-12 h-12 rounded-[1.2rem] bg-gradient-to-tr from-sky-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/20 text-white relative overflow-hidden shrink-0"
               >
-                <Printer className="w-7 h-7" />
+                <div className="absolute inset-0 bg-white/10 backdrop-blur-xs"></div>
+                <Zap className="w-6 h-6 text-white relative z-10" />
               </motion.div>
               <div>
-                <div className="flex items-center flex-wrap gap-2 sm:gap-3">
-                  <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-800 dark:text-white">
-                    نظام طباعة استمارات أعذار التأخير
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white">
+                    نظام إدارة وأعذار البصمة الإلكترونية
                   </h1>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-bold">
-                  الشركة العامة لإنتاج الطاقة الكهربائية - الفرات الأوسط | قسم تكنولوجيا المعلومات والجودة
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
+                  محطة كهرباء الخيرات الغازية | قسم الجودة والتطوير المؤسسي
                 </p>
               </div>
             </div>
 
-            {/* Top Bar Quick Controls */}
-            <div className="flex flex-wrap gap-3 items-center">
-              {/* Iraq Local Time Clock */}
-              <div className="hidden md:flex items-center gap-2 px-4 py-2.5 bg-slate-100/80 dark:bg-slate-800/80 rounded-2xl border border-slate-200/30 dark:border-slate-700/30 text-xs font-bold text-slate-600 dark:text-slate-300">
-                <Clock className="w-4 h-4 text-indigo-500 animate-spin-slow" />
-                <span>توقيت العراق المحلي:</span>
-                <BaghdadClock />
-              </div>
-
-              {/* API settings */}
+            {/* iOS Action Bar Pills */}
+            <div className="flex flex-wrap gap-2.5 items-center">
+              {/* API Settings Pill */}
               <button
                 onClick={() => setShowSettings(true)}
-                className="p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-900 text-slate-600 dark:text-slate-300 transition-all duration-300 cursor-pointer hover:shadow-md hover:-translate-y-0.5"
+                className="p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1.5 text-xs font-bold"
                 title="إعدادات نظام الذكاء الاصطناعي"
               >
-                <Settings className="w-5 h-5" />
+                <Settings className="w-4 h-4 text-sky-500" />
+                <span className="hidden sm:inline">إعدادات الربط</span>
               </button>
 
-              {/* Theme toggle */}
+              {/* Theme Switch Pill */}
               <button
                 onClick={() => setIsDarkMode(!isDarkMode)}
-                className="p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-900 text-slate-600 dark:text-slate-300 transition-all duration-300 cursor-pointer hover:shadow-md hover:-translate-y-0.5"
+                className="p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all cursor-pointer shadow-xs active:scale-95"
                 title="تغيير مظهر المنصة"
               >
-                {isDarkMode ? <Sun className="w-5 h-5 text-amber-500 animate-bounce" /> : <Moon className="w-5 h-5" />}
+                {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
               </button>
 
-              {/* Master Print Button */}
-              <button
+              {/* Master Print Pill */}
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={printAllForms}
                 disabled={records.length === 0}
-                className={`flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-700 hover:from-indigo-700 hover:to-violet-700 text-white font-extrabold text-xs rounded-2xl shadow-xl shadow-indigo-500/20 transition-all duration-300 hover:-translate-y-0.5 cursor-pointer ${
-                  records.length === 0 ? 'opacity-50 pointer-events-none' : 'ring-4 ring-indigo-500/20 ring-offset-2 ring-offset-slate-50 dark:ring-offset-slate-950'
+                className={`flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black text-xs rounded-full shadow-lg shadow-blue-500/20 transition-all cursor-pointer ${
+                  records.length === 0 ? 'opacity-50 pointer-events-none' : ''
                 }`}
               >
                 <Printer className="w-4 h-4" />
-                <span>طباعة الكل دفعة واحدة ({records.length})</span>
-              </button>
+                <span>طباعة الدفعة كاملة ({records.length})</span>
+              </motion.button>
             </div>
           </div>
         </header>
@@ -1042,53 +1065,67 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          {/* DYNAMIC BENTO STATS BOARD */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+          {/* iOS BENTO STATS WIDGETS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
             
-            {/* Stat Box 1: Records Count */}
-            <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-center justify-between group overflow-hidden relative">
-              <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-indigo-500/5 rounded-full group-hover:scale-125 transition-transform"></div>
+            {/* Widget 1: Records Count */}
+            <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800/80 rounded-[1.75rem] p-4.5 shadow-[0_8px_30px_rgb(0,0,0,0.03)] dark:shadow-none backdrop-blur-xl flex items-center justify-between group relative overflow-hidden transition-all hover:scale-[1.01]">
               <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold block uppercase tracking-wider">سجلات المتأخرين المكتشفة</span>
-                <span className="text-3xl font-black font-mono text-slate-800 dark:text-white">{records.length}</span>
-                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold block">مستخرجة من المرفقات</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold block uppercase tracking-wider">سجلات المتأخرين</span>
+                <span className="text-2xl font-black font-mono text-slate-900 dark:text-white">{records.length} <span className="text-xs font-sans text-slate-500 font-semibold">منتسب</span></span>
+                <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold block">مستخرجة من الموقف</span>
               </div>
-              <div className="p-3 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl">
+              <div className="w-12 h-12 rounded-2xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
                 <FileSpreadsheet className="w-6 h-6" />
               </div>
             </div>
 
-            {/* Stat Box 3: Integrity Percentage */}
-            <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-center justify-between group overflow-hidden relative">
-              <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-indigo-500/5 rounded-full group-hover:scale-125 transition-transform"></div>
+            {/* Widget 2: Total Lateness Minutes */}
+            <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800/80 rounded-[1.75rem] p-4.5 shadow-[0_8px_30px_rgb(0,0,0,0.03)] dark:shadow-none backdrop-blur-xl flex items-center justify-between group relative overflow-hidden transition-all hover:scale-[1.01]">
               <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold block uppercase tracking-wider">معدل سلامة واكتمال الحقول</span>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-black font-mono text-slate-800 dark:text-white">{integrityPercentage}%</span>
-                  <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">نسبة ممتازة</span>
-                </div>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold block">تدقيق أوتوماتيكي مستمر</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold block uppercase tracking-wider">مجموع التأخير</span>
+                <span className="text-2xl font-black font-mono text-amber-600 dark:text-amber-400">{totalLatenessMinutes} <span className="text-xs font-sans font-bold">دقيقة</span></span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block">يعادل {totalLatenessHours} ساعة رسمية</span>
               </div>
-              <div className="p-3 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl">
-                <TrendingUp className="w-6 h-6" />
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <Clock className="w-6 h-6" />
+              </div>
+            </div>
+
+            {/* Widget 3: Data Integrity % */}
+            <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800/80 rounded-[1.75rem] p-4.5 shadow-[0_8px_30px_rgb(0,0,0,0.03)] dark:shadow-none backdrop-blur-xl flex items-center justify-between group relative overflow-hidden transition-all hover:scale-[1.01]">
+              <div className="space-y-1">
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold block uppercase tracking-wider">سلامة البيانات والحقول</span>
+                <span className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">{integrityPercentage}%</span>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block">تدقيق أوتوماتيكي محلي</span>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+            </div>
+
+            {/* Widget 4: Power Station Unit Status */}
+            <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800/80 rounded-[1.75rem] p-4.5 shadow-[0_8px_30px_rgb(0,0,0,0.03)] dark:shadow-none backdrop-blur-xl flex items-center justify-between group relative overflow-hidden transition-all hover:scale-[1.01]">
+              <div className="space-y-1">
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold block uppercase tracking-wider">جهة الانتساب والرصد</span>
+                <span className="text-sm font-black text-slate-800 dark:text-slate-100 block truncate max-w-[150px]">محطة الخيرات الغازية</span>
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold block">قسم الجودة والتطوير</span>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <Building className="w-6 h-6" />
               </div>
             </div>
           </div>
 
-          {/* DUAL ACTION LAYOUT: UPLOAD HUB */}
+          {/* iOS FILE UPLOAD HUB CONTAINER */}
           <div className="grid grid-cols-1 gap-6">
-            
-            {/* Redesigned Premium File Upload Canvas */}
             <div className="lg:col-span-1">
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className="relative rounded-3xl border-2 border-dashed p-8 text-center flex flex-col items-center justify-center transition-all duration-350 min-h-[310px] group overflow-hidden border-slate-300 dark:border-slate-800 bg-white/80 dark:bg-slate-900/90 hover:border-indigo-500 dark:hover:border-indigo-500/50 hover:bg-white dark:hover:bg-slate-900 shadow-xl"
+                className="relative rounded-[2rem] border-2 border-dashed p-7 text-center flex flex-col items-center justify-center transition-all duration-300 min-h-[260px] group overflow-hidden border-slate-300 dark:border-slate-800 bg-white/70 dark:bg-slate-900/80 hover:border-sky-500 dark:hover:border-sky-500/60 shadow-[0_8px_30px_rgb(0,0,0,0.03)] backdrop-blur-xl"
               >
-                {/* Visual scanlines or light effects */}
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent pointer-events-none opacity-50"></div>
-
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -1098,67 +1135,72 @@ export default function App() {
                 />
 
                 {isLoading ? (
-                  <div className="flex flex-col items-center space-y-6 w-full max-w-md mx-auto relative z-10">
+                  <div className="flex flex-col items-center space-y-5 w-full max-w-md mx-auto relative z-10">
                     <div className="relative">
-                      <div className="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full"></div>
-                      <RefreshCw className="w-14 h-14 text-indigo-600 dark:text-indigo-400 animate-spin relative z-10" />
+                      <div className="absolute inset-0 bg-sky-500/20 blur-xl rounded-full"></div>
+                      <RefreshCw className="w-12 h-12 text-sky-600 dark:text-sky-400 animate-spin relative z-10" />
                     </div>
-                    <div className="space-y-1.5 text-center">
-                      <p className="text-base font-black text-slate-800 dark:text-slate-100">جاري معالجة وتدقيق المستند المرفق بالذكاء الاصطناعي...</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">نقرأ الخلايا ونحسب فارق الدقائق آلياً من الدوام الرسمي</p>
+                    <div className="space-y-1 text-center">
+                      <p className="text-sm font-black text-slate-900 dark:text-slate-100">جاري تحليل ومعالجة المستند آلياً بالذكاء الاصطناعي...</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">استخراج جدول الموقف وحساب دقائق التأخير الرسمية</p>
                     </div>
                     
-                    {/* Futuristic loading shimmer bar */}
-                    <div className="w-full bg-slate-100 dark:bg-slate-950 rounded-full h-3 mt-2 overflow-hidden border border-slate-200/50 dark:border-slate-800 shadow-inner">
+                    <div className="w-full bg-slate-100 dark:bg-slate-950 rounded-full h-2.5 overflow-hidden border border-slate-200/50 dark:border-slate-800">
                       <motion.div 
-                        className="bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-750 h-full rounded-full flex items-center justify-center relative overflow-hidden"
+                        className="bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 h-full rounded-full"
                         initial={{ width: 0 }}
                         animate={{ width: `${progress}%` }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                      >
-                        <div className="absolute inset-0 bg-white/20 w-full h-full animate-shimmer" style={{ backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)' }}></div>
-                      </motion.div>
+                        transition={{ duration: 0.3 }}
+                      />
                     </div>
                   </div>
                 ) : (
                   <div className="relative z-10 flex flex-col items-center max-w-2xl w-full">
                     <motion.div 
-                      whileHover={{ scale: 1.05 }}
-                      className="w-16 h-16 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/20 flex items-center justify-center mb-4 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                      whileHover={{ scale: 1.08 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-500/10 to-blue-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center mb-3 shadow-xs border border-sky-500/20"
                     >
-                      <Upload className="w-8 h-8" />
+                      <Upload className="w-7 h-7" />
                     </motion.div>
                     
-                    <h3 className="text-lg font-black text-slate-800 dark:text-slate-100 mb-2">
-                      اسحب ملف الموقف أو صورة كشف البصمة وضعه هنا
+                    <h3 className="text-base font-black text-slate-900 dark:text-slate-100 mb-1">
+                      اسحب ملف الموقف (.xlsx / .docx) أو صورة الكشف الورقي هنا
                     </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6 max-w-md">
-                      يدعم النظام استيراد ملفات الإكسل <strong className="text-slate-700 dark:text-slate-300">(.xlsx)</strong>، مستندات الوورد <strong className="text-slate-700 dark:text-slate-300">(.docx)</strong>، أو صور موقف المتأخرين الورقية لتقرأ آلياً بالكامل.
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-5 max-w-md font-medium">
+                      نظام قراءة الذكاء الاصطناعي المباشر لاستخراج موقف المتأخرين وتوليد استمارات الأعذار الرسمية لمحطة الكهرباء فوراً.
                     </p>
 
                     <div className="flex flex-wrap gap-2.5 items-center justify-center w-full max-w-xl">
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="px-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-black text-xs rounded-2xl shadow-lg shadow-indigo-500/15 cursor-pointer transition-transform hover:-translate-y-0.5 flex items-center gap-1.5"
+                        className="px-5 py-2.5 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-black text-xs rounded-full shadow-md shadow-sky-500/15 cursor-pointer transition-transform hover:-translate-y-0.5 flex items-center gap-1.5"
                       >
                         <Upload className="w-4 h-4" />
-                        <span>رفع وتصفح كشف من جهازك</span>
+                        <span>استيراد كشف من جهازك</span>
                       </button>
 
                       <button 
                         onClick={handleAutoCleanData}
-                        className="px-4 py-3 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 font-black text-xs rounded-2xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                        className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-full transition-all cursor-pointer flex items-center gap-1.5 border border-slate-200/60 dark:border-slate-700"
                       >
-                        <Sparkles className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
-                        <span>إصلاح تلقائي للأخطاء</span>
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                        <span>إصلاح تلقائي للبيانات</span>
                       </button>
                       
+                      <button 
+                        onClick={handleLoadDemoData}
+                        className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-full transition-all cursor-pointer border border-slate-200/60 dark:border-slate-700"
+                      >
+                        إعادة تحميل بيانات المحطة التجريبية
+                      </button>
+
                       {records.length > 0 && (
                         <button
                           onClick={handleClearAll}
-                          className="px-4 py-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-black text-xs rounded-2xl cursor-pointer transition-all"
+                          className="px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-full cursor-pointer transition-all border border-rose-500/20"
                         >
-                          مسح كافة السجلات
+                          مسح الكشف
                         </button>
                       )}
                     </div>
@@ -1168,36 +1210,36 @@ export default function App() {
             </div>
           </div>
 
-          {/* DYNAMIC MODERN TABS GLIDER */}
-          <div className="flex bg-white/80 dark:bg-slate-900/80 p-2 rounded-2xl shadow-md overflow-x-auto no-scrollbar border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-md">
+          {/* iOS SEGMENTED CONTROL TABS */}
+          <div className="bg-slate-200/60 dark:bg-slate-800/60 p-1.5 rounded-[1.25rem] border border-black/5 dark:border-white/10 backdrop-blur-xl flex items-center shadow-inner gap-1">
             <button
               onClick={() => setActiveTab('preview')}
-              className={`flex-1 min-w-[200px] px-6 py-3.5 text-xs font-black transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 rounded-xl ${
+              className={`flex-1 py-3 px-4 rounded-xl text-xs font-black transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
                 activeTab === 'preview' 
-                  ? 'bg-slate-900 text-white dark:bg-slate-800 dark:text-indigo-400 shadow' 
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-950/50'
+                  ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-md shadow-black/5' 
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               <FileSpreadsheet className="w-4 h-4 shrink-0" />
-              <span>جدول تدقيق ومطابقة البيانات ({records.length})</span>
+              <span>جدول التدقيق والتعديل ({records.length})</span>
             </button>
             
             <button
               onClick={() => {
                 if (records.length === 0) {
-                  showNotification('يرجى رفع ملف أو إضافة بيانات أولاً لمعاينة الاستمارات.', 'error');
+                  showNotification('يرجى استيراد كشف أو إضافة بيانات أولاً لمعاينة الاستمارة.', 'error');
                   return;
                 }
                 setActiveTab('individual');
               }}
-              className={`flex-1 min-w-[200px] px-6 py-3.5 text-xs font-black transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 rounded-xl ${
+              className={`flex-1 py-3 px-4 rounded-xl text-xs font-black transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
                 activeTab === 'individual' 
-                  ? 'bg-slate-900 text-white dark:bg-slate-800 dark:text-emerald-400 shadow' 
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-950/50'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-md shadow-black/5' 
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               <FileTextIcon className="w-4 h-4 shrink-0" />
-              <span>معاينة حية للاستمارة الرسمية المنفردة</span>
+              <span>المعاينة الحية للاستمارة المنفردة</span>
             </button>
 
             <button
@@ -1208,14 +1250,14 @@ export default function App() {
                 }
                 setActiveTab('all-forms');
               }}
-              className={`flex-1 min-w-[200px] px-6 py-3.5 text-xs font-black transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 rounded-xl ${
+              className={`flex-1 py-3 px-4 rounded-xl text-xs font-black transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
                 activeTab === 'all-forms' 
-                  ? 'bg-slate-900 text-white dark:bg-slate-800 dark:text-emerald-400 shadow' 
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-950/50'
+                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-md shadow-black/5' 
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               <Printer className="w-4 h-4 shrink-0" />
-              <span>معاينة طباعة الكل دفعة واحدة</span>
+              <span>معاينة طباعة الدفعة الكاملة</span>
             </button>
           </div>
 
